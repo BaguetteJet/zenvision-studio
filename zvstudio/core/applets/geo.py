@@ -25,6 +25,7 @@ class TrianglesApplet(_Viz):
     meta = AppletMeta(key="triangles", name="Triangles", description="Nested rotating triangles",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
                                      "layers": {"type": "int", "default": 6, "label": "Layers"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 55}})
 
     def render(self, ctx: Ctx):
@@ -33,8 +34,9 @@ class TrianglesApplet(_Viz):
         d = ImageDraw.Draw(img)
         a = self._audio
         t = ctx.t
-        lvl = a.level if a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
-        bass = a.bass if a.ok else lvl
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        bass = a.bass if audio and a.ok else lvl
         layers = max(1, int(self.config.get("layers", 6)))
         base = min(w, h) * (0.46 + 0.18 * lvl)
         cx, cy = w / 2, h / 2
@@ -52,6 +54,7 @@ class TrianglesApplet(_Viz):
 class CubeApplet(_Viz):
     meta = AppletMeta(key="cube", name="Cube", description="Rotating wireframe cube",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 50}})
 
     V = [(-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
@@ -65,7 +68,8 @@ class CubeApplet(_Viz):
         d = ImageDraw.Draw(img)
         a = self._audio
         t = ctx.t
-        lvl = a.level if a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
         ax, ay = t * 0.7, t * 0.9
         s = min(w, h) * 0.34 * (0.85 + 0.5 * lvl)
         cx, cy = w / 2, h / 2
@@ -89,6 +93,7 @@ class StarfieldApplet(_Viz):
     meta = AppletMeta(key="starfield", name="Starfield", description="Warp stars (beat-reactive)",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
                                      "count": {"type": "int", "default": 90, "label": "Stars"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 45}, "warp": {**WARP, "default": 0}})
 
     def __init__(self, *a, **k) -> None:
@@ -112,8 +117,9 @@ class StarfieldApplet(_Viz):
             self._seed(n)
         dt = max(0.0, min(0.1, ctx.t - self._lt))
         self._lt = ctx.t
-        lvl = a.level if a.ok else 0.4
-        speed = (0.25 + 1.4 * lvl + 1.8 * (a.beat if a.ok else 0)) * dt
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.1
+        speed = (0.25 + 1.4 * lvl + 1.8 * (a.beat if audio and a.ok else 0)) * dt
         cx, cy = w / 2, h / 2
         scale = min(w, h) * 0.9
         for st in self._stars:

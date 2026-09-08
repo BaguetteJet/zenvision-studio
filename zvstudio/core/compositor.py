@@ -29,6 +29,7 @@ class Compositor:
         self.brightness = 255
         self.enabled = True
         self.beat_flash = False
+        self._flash_audio = False
 
         self._scenes: list[Scene] = []
         self._preempt: list[Applet] = []
@@ -77,6 +78,20 @@ class Compositor:
     def set_enabled(self, on: bool) -> None:
         self.enabled = bool(on)
 
+    def set_beat_flash(self, on: bool) -> None:
+        on = bool(on)
+        if on == self.beat_flash:
+            return
+        from .audio import AudioLevel
+        audio = AudioLevel.get()
+        if on:
+            audio.acquire()
+            self._flash_audio = True
+        elif self._flash_audio:
+            audio.release()
+            self._flash_audio = False
+        self.beat_flash = on
+
     def _flash(self, img):
         """Brighten the whole frame on each audio beat (global beat-flash mode)."""
         try:
@@ -108,6 +123,10 @@ class Compositor:
                 self._cur.on_stop()
             except Exception:
                 pass
+        if self._flash_audio:
+            from .audio import AudioLevel
+            AudioLevel.get().release()
+            self._flash_audio = False
 
     # --- internals -------------------------------------------------------
     def _reset_current(self, applet: Applet | None) -> None:

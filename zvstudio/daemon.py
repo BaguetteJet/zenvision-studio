@@ -80,7 +80,7 @@ class Daemon:
         self.comp.set_enabled(on)
 
     def set_flash(self, on: bool) -> None:
-        self.comp.beat_flash = bool(on)
+        self.comp.set_beat_flash(on)
 
     def pin(self, key: str | None, config: dict | None = None) -> None:
         if key is None:

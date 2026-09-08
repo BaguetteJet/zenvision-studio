@@ -29,6 +29,14 @@ class _Viz(Applet):
         self._gsize = None
         self._buf = None
 
+    def on_start(self) -> None:
+        if self.config.get("audio", True):
+            self._audio.acquire()
+
+    def on_stop(self) -> None:
+        if self.config.get("audio", True):
+            self._audio.release()
+
     # --- generative grid -------------------------------------------------
     def _grids(self):
         w, h = self.size

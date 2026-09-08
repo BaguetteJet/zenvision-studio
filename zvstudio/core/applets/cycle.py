@@ -30,6 +30,7 @@ class CycleApplet(Applet):
         self._i = 0
         self._last_switch = 0.0
         self._title = None
+        self._child_started = False
 
     def _build(self) -> None:
         from ..registry import get_applet
@@ -50,6 +51,17 @@ class CycleApplet(Applet):
         self._csize = self.size
         self._i = 0
 
+    def on_start(self) -> None:
+        self._build()
+        if self._children:
+            self._children[0].on_start()
+            self._child_started = True
+
+    def on_stop(self) -> None:
+        if self._child_started and self._children:
+            self._children[self._i].on_stop()
+            self._child_started = False
+
     def _track(self) -> str | None:
         try:
             from .nowplaying import MprisWatcher, NowPlayingApplet
@@ -65,6 +77,9 @@ class CycleApplet(Applet):
         if not self._children or self._csize != self.size:
             self._build()
             self._last_switch = ctx.t
+            if not self._child_started and self._children:
+                self._children[self._i].on_start()
+                self._child_started = True
         if not self._children:
             return F.canvas(*self.size)
 
@@ -76,8 +91,12 @@ class CycleApplet(Applet):
                     switch = True
                 self._title = ti
         if switch:
+            if self._child_started:
+                self._children[self._i].on_stop()
             self._i = (self._i + 1) % len(self._children)
             self._last_switch = ctx.t
+            if self._child_started:
+                self._children[self._i].on_start()
         return self._children[self._i].render(ctx)
 
 
@@ -141,6 +160,21 @@ class LayoutVJApplet(Applet):
         except Exception:
             return 0.0
 
+    def on_start(self) -> None:
+        self._build()
+        if self.config.get("on_beat", True):
+            from ..audio import AudioLevel
+            AudioLevel.get().acquire()
+        if self._layouts:
+            self._layouts[self._i].on_start()
+
+    def on_stop(self) -> None:
+        if self._layouts:
+            self._layouts[self._i].on_stop()
+        if self.config.get("on_beat", True):
+            from ..audio import AudioLevel
+            AudioLevel.get().release()
+
     def render(self, ctx: Ctx):
         if not self._layouts or self._csize != self.size:
             self._build()
@@ -159,6 +193,8 @@ class LayoutVJApplet(Applet):
         if ctx.t - self._t0 >= max(5, int(self.config.get("period", 25))):
             switch = True
         if switch:
+            self._layouts[self._i].on_stop()
             self._i = (self._i + 1) % len(self._layouts)
             self._t0 = ctx.t
+            self._layouts[self._i].on_start()
         return self._layouts[self._i].render(ctx)
