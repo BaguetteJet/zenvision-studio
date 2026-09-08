@@ -94,7 +94,7 @@ class StarfieldApplet(_Viz):
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
                                      "count": {"type": "int", "default": 90, "label": "Stars"},
                                      "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
-                                     "trails": {**TRAILS, "default": 45}, "warp": {**WARP, "default": 0}})
+                                     "trails": {**TRAILS, "default": 66}, "warp": {**WARP, "default": 0}})
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
@@ -103,8 +103,9 @@ class StarfieldApplet(_Viz):
 
     def _seed(self, n):
         import random
-        self._stars = [[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(0.05, 1.0)]
-                       for _ in range(n)]
+        self._stars = [[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(0.05, 1.0),
+                        random.random() < 0.7]  # True = stays tiny; False = can bloom
+                    for _ in range(n)]
 
     def render(self, ctx: Ctx):
         import random
@@ -126,12 +127,15 @@ class StarfieldApplet(_Viz):
             st[2] -= speed
             if st[2] <= 0.02:
                 st[0], st[1], st[2] = random.uniform(-1, 1), random.uniform(-1, 1), 1.0
+                st[3] = random.random() < 0.7
             sx = cx + st[0] / st[2] * scale
             sy = cy + st[1] / st[2] * scale
             if 0 <= sx < w and 0 <= sy < h:
                 g = int(60 + 195 * (1 - st[2]))
-                rad = 0 if st[2] > 0.4 else 1
-                d.ellipse([sx - rad, sy - rad, sx + rad, sy + rad], fill=g)
+                if st[3] or st[2] > 0.4:
+                    d.point((int(sx), int(sy)), fill=g)
+                else:
+                    d.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=g)
         if HAVE_NP:
             return self._feedback(np.asarray(img, dtype=np.float32))
         return img
