@@ -20,6 +20,7 @@ if HAVE_NP:
 class MoireApplet(_Viz):
     meta = AppletMeta(key="moire", name="Moire", description="Interfering ring sources",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 40}})
 
     def render(self, ctx: Ctx):
@@ -27,7 +28,10 @@ class MoireApplet(_Viz):
             return self._pulse(ctx)
         gx, gy = self._grids()
         a = self._audio
-        t, bass, lvl = ctx.t, a.bass, a.level
+        audio = self.config.get("audio", False)
+        t = ctx.t
+        bass = a.bass if audio and a.ok else 0.0
+        lvl = a.level if audio and a.ok else 0.5
         asp = self.size[0] / self.size[1]
         x = gx * asp
         f1 = (asp * (0.5 + 0.35 * math.sin(t * 0.7)), 0.5 + 0.35 * math.cos(t * 0.9))
@@ -45,6 +49,7 @@ class MetaballsApplet(_Viz):
     meta = AppletMeta(key="metaballs", name="Metaballs", description="Gooey blobs",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
                                      "balls": {"type": "int", "default": 4, "label": "Blobs"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 35}})
 
     def render(self, ctx: Ctx):
@@ -54,7 +59,8 @@ class MetaballsApplet(_Viz):
         gx, gy = self._grids()
         px, py = gx * w, gy * h
         a = self._audio
-        t, lvl = ctx.t, a.level
+        t = ctx.t
+        lvl = a.level if self.config.get("audio", False) and a.ok else 0.5
         nb = max(2, int(self.config.get("balls", 4)))
         field = np.zeros((h, w), np.float32)
         rad = (h * 0.42) * (0.7 + 0.5 * lvl)
@@ -68,7 +74,8 @@ class MetaballsApplet(_Viz):
 
 class RippleApplet(_Viz):
     meta = AppletMeta(key="ripple", name="Ripple", description="Water ripples (beat drops)",
-                      config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"}})
+                      config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"}})
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
@@ -88,7 +95,8 @@ class RippleApplet(_Viz):
         nxt = lap * 0.5 - prev
         nxt *= 0.96
         # drop on beat, plus a gentle idle drop
-        beat = a.beat if a.ok else 0
+        audio = self.config.get("audio", False)
+        beat = a.beat if audio and a.ok else 0
         if beat > 0.4 and beat > self._last_beat:
             nxt[random.randint(2, h - 3), random.randint(2, w - 3)] += 260
         self._last_beat = beat
@@ -102,7 +110,8 @@ class RippleApplet(_Viz):
 
 class FireApplet(_Viz):
     meta = AppletMeta(key="fire", name="Fire", description="Classic fire (bass-fed)",
-                      config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"}})
+                      config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"}})
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
@@ -115,7 +124,7 @@ class FireApplet(_Viz):
         if self._fire is None or self._fire.shape != (h, w):
             self._fire = np.zeros((h, w), np.float32)
         a = self._audio
-        bass = a.bass if a.ok else 0.4
+        bass = a.bass if self.config.get("audio", False) and a.ok else 0.4
         fire = self._fire
         below = np.roll(fire, -1, 0)
         nxt = (below * 2 + np.roll(below, 1, 1) + np.roll(below, -1, 1)) / 4.04 - 3.0
@@ -130,7 +139,8 @@ class MatrixApplet(_Viz):
     meta = AppletMeta(key="matrix", name="Matrix", description="Falling katakana rain",
                       config_schema={"fps": {"type": "int", "default": 24, "label": "FPS"},
                                      "size": {"type": "int", "default": 9, "label": "Glyph size (smaller = denser)"},
-                                     "speed": {"type": "int", "default": 150, "label": "Speed %"}})
+                                     "speed": {"type": "int", "default": 150, "label": "Speed %"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"}})
 
     GLYPH = ("アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホ"
              "マミムメモヤユヨラリルレロワヲンｱｲｳｴｵ0123456789")
@@ -152,7 +162,9 @@ class MatrixApplet(_Viz):
         d = ImageDraw.Draw(img)
         f = F.cjk_font(ch)
         speedf = max(0.2, self.config.get("speed", 150) / 100.0)
-        spd = ch * (0.6 + 1.8 * (a.level if a.ok else 0.4)) * speedf
+        audio = self.config.get("audio", False)
+        level = a.level if audio and a.ok else 0.4
+        spd = ch * (0.6 + 1.8 * level) * speedf
         for c in range(cols):
             self._heads[c] += spd / 30.0
             if self._heads[c] - tail * ch > h:
