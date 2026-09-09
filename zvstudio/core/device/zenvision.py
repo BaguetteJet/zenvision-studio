@@ -6,6 +6,7 @@ on bulk EP 0x07. See that project's PROTOCOL.md for the full description.
 """
 from __future__ import annotations
 
+import numpy as np
 from PIL import Image
 
 from .base import Panel
@@ -18,39 +19,24 @@ FRAME_BYTES = 8704
 
 
 def encode(img: Image.Image, width: int = 256, height: int = 64) -> bytes:
-    """PIL image -> 8704-byte ZenVision framebuffer (4bpp + 17x512 packet framing)."""
     img = img.convert("L")
     if img.size != (width, height):
         img = img.resize((width, height), Image.LANCZOS)
-    px = img.load()
 
-    n = bytearray(width * height)
-    i = 0
-    for y in range(height):
-        for x in range(width):
-            n[i] = px[x, y] >> 4
-            i += 1
+    arr = np.asarray(img, dtype=np.uint8).reshape(-1) >> 4   # 16384 nibbles
+    n = arr.reshape(-1, 4)                                    # (4096, 4)
+    data = np.empty(8192, dtype=np.uint8)
+    data[0::2] = n[:, 2] | (n[:, 3] << 4)
+    data[1::2] = n[:, 0] | (n[:, 1] << 4)
 
-    data = bytearray(8192)
-    for k in range(4096):
-        s = 4 * k
-        data[2 * k] = n[s + 2] | (n[s + 3] << 4)
-        data[2 * k + 1] = n[s] | (n[s + 1] << 4)
-
-    out = bytearray(FRAME_BYTES)
-    pos = d = 0
-    while pos < FRAME_BYTES and d <= 0x1FFF:
-        bp = pos & 0x1FF
-        if bp == 0:
-            out[pos] = (pos >> 9) & 0xFF
-        elif bp == 1:
-            if (pos >> 9) == 16:
-                out[pos] = 1
-        elif bp >= 4:
-            out[pos] = data[d]
-            d += 1
-        pos += 1
-    return bytes(out)
+    out = np.zeros(8704, dtype=np.uint8)
+    pos = np.arange(8704)
+    bp, page = pos & 0x1FF, pos >> 9
+    out[bp == 0] = page[bp == 0].astype(np.uint8)
+    out[(bp == 1) & (page == 16)] = 1
+    body_idx = np.flatnonzero(bp >= 4)[: data.size]
+    out[body_idx] = data
+    return out.tobytes()
 
 
 def _cmd(*head: int) -> bytes:

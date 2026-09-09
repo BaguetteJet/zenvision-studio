@@ -5,6 +5,7 @@ reuse the viz feedback buffer for MilkDrop-style trails.
 from __future__ import annotations
 
 import math
+import random
 
 from PIL import ImageDraw
 
@@ -98,44 +99,115 @@ class StarfieldApplet(_Viz):
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
-        self._stars: list[list[float]] = []
+        # NumPy arrays for star properties
+        self.xs = np.empty(0, dtype=np.float32)
+        self.ys = np.empty(0, dtype=np.float32)
+        self.zs = np.empty(0, dtype=np.float32)
+        self.flags = np.empty(0, dtype=np.bool_)
         self._lt = 0.0
 
-    def _seed(self, n):
-        import random
-        self._stars = [[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(0.05, 1.0),
-                        random.random() < 0.7]  # True = stays tiny; False = can bloom
-                    for _ in range(n)]
+    def _seed(self, n: int) -> None:
+        """Initialise star arrays with random values."""
+        self.xs = np.random.uniform(-1, 1, n).astype(np.float32)
+        self.ys = np.random.uniform(-1, 1, n).astype(np.float32)
+        self.zs = np.random.uniform(0.05, 1.0, n).astype(np.float32)
+        self.flags = np.random.random(n) < 0.7  # True = stays tiny; False = can bloom
 
     def render(self, ctx: Ctx):
-        import random
         w, h = self.size
-        img = F.canvas(w, h)
-        d = ImageDraw.Draw(img)
         a = self._audio
         n = max(8, int(self.config.get("count", 90)))
-        if len(self._stars) != n:
+
+        # Re‑seed if star count changed
+        if len(self.xs) != n:
             self._seed(n)
+
+        # Time step (clamped)
         dt = max(0.0, min(0.1, ctx.t - self._lt))
         self._lt = ctx.t
+
+        # Audio‑driven speed factor
         audio = self.config.get("audio", True)
-        lvl = a.level if audio and a.ok else 0.1
-        speed = (0.25 + 1.4 * lvl + 1.8 * (a.beat if audio and a.ok else 0)) * dt
+        if audio and a.ok:
+            lvl = a.level
+            beat = a.beat
+        else:
+            lvl = 0.1
+            beat = 0.0
+        speed = (0.25 + 1.4 * lvl + 1.8 * beat) * dt
+
+        xs, ys, zs, flags = self.xs, self.ys, self.zs, self.flags
+
+        # Vectorised depth update
+        zs -= speed
+
+        # Reset stars that passed the horizon
+        reset = zs <= 0.02
+        if np.any(reset):
+            n_reset = np.count_nonzero(reset)
+            xs[reset] = np.random.uniform(-1, 1, n_reset).astype(np.float32)
+            ys[reset] = np.random.uniform(-1, 1, n_reset).astype(np.float32)
+            zs[reset] = 1.0
+            flags[reset] = np.random.random(n_reset) < 0.7
+
+        # Project to screen coordinates
         cx, cy = w / 2, h / 2
         scale = min(w, h) * 0.9
-        for st in self._stars:
-            st[2] -= speed
-            if st[2] <= 0.02:
-                st[0], st[1], st[2] = random.uniform(-1, 1), random.uniform(-1, 1), 1.0
-                st[3] = random.random() < 0.7
-            sx = cx + st[0] / st[2] * scale
-            sy = cy + st[1] / st[2] * scale
-            if 0 <= sx < w and 0 <= sy < h:
-                g = int(60 + 195 * (1 - st[2]))
-                if st[3] or st[2] > 0.4:
-                    d.point((int(sx), int(sy)), fill=g)
+        sx = cx + xs / zs * scale
+        sy = cy + ys / zs * scale
+
+        # Brightness (grayscale 60‑255)
+        g = 60.0 + 195.0 * (1.0 - zs)
+
+        # Integer pixel coordinates
+        ix = np.floor(sx).astype(np.int32)
+        iy = np.floor(sy).astype(np.int32)
+
+        # Stars inside the canvas
+        inside = (ix >= 0) & (ix < w) & (iy >= 0) & (iy < h)
+
+        # Separate tiny (point) and bloom (2×2 block) stars
+        point_mask = inside & (flags | (zs > 0.4))
+        bloom_mask = inside & (~flags) & (zs <= 0.4)
+
+        # Create float32 grayscale image
+        img = np.zeros((h, w), dtype=np.float32)
+
+        # --- Draw point stars (single pixel) ---
+        if np.any(point_mask):
+            px = ix[point_mask]
+            py = iy[point_mask]
+            vals = g[point_mask]
+            img[py, px] = vals
+
+        # --- Draw bloom stars as 2×2 solid blocks ---
+        if np.any(bloom_mask):
+            bloom_idx = np.where(bloom_mask)[0]
+            for idx in bloom_idx:
+                x0 = ix[idx]
+                y0 = iy[idx]
+                val = g[idx]
+                # 2×2 block from (x0, y0) to (x0+1, y0+1), clipped to canvas
+                x_start = max(0, x0)
+                x_end = min(w, x0 + 2)      # exclusive
+                y_start = max(0, y0)
+                y_end = min(h, y0 + 2)
+                img[y_start:y_end, x_start:x_end] = val
+
+        # Fallback to Pillow if NumPy is not available
+        if not HAVE_NP:
+            pil_img = Image.new('L', (w, h), 0)
+            d = ImageDraw.Draw(pil_img)
+            for i in range(n):
+                if not inside[i]:
+                    continue
+                sx_i, sy_i = sx[i], sy[i]
+                g_i = int(g[i])
+                if flags[i] or zs[i] > 0.4:
+                    d.point((int(sx_i), int(sy_i)), fill=g_i)
                 else:
-                    d.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=g)
-        if HAVE_NP:
-            return self._feedback(np.asarray(img, dtype=np.float32))
-        return img
+                    # Original ellipse (2×2 bounding box)
+                    d.ellipse([sx_i - 1, sy_i - 1, sx_i + 1, sy_i + 1], fill=g_i)
+            return pil_img
+
+        return self._feedback(img.astype(np.float32))
