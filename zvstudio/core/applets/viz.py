@@ -59,18 +59,20 @@ class _Viz(Applet):
     def _feedback(self, frame):
         if not HAVE_NP:
             return Image.fromarray(np.asarray(frame).astype("uint8"), "L")
-        f = frame.astype(np.float32)
+        f = np.asarray(frame, dtype=np.float32)  # no copy when already float32
         h, w = f.shape
         decay = max(0, min(98, int(self.config.get("trails", 80)))) / 100.0
         warp = max(0, int(self.config.get("warp", 0))) / 100.0
         if decay <= 0:
-            return Image.fromarray(np.clip(f, 0, 255).astype(np.uint8), "L")
+            np.clip(f, 0, 255, out=f)
+            return Image.fromarray(f.astype(np.uint8), "L")
         if self._buf is None or self._buf.shape != (h, w):
             self._buf = np.zeros((h, w), np.float32)
         buf = self._zoom(self._buf, 1.0 + warp) if warp > 0 else self._buf
         out = np.maximum(buf * decay, f)
         self._buf = out
-        return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "L")
+        np.clip(out, 0, 255, out=out)
+        return Image.fromarray(out.astype(np.uint8), "L")
 
     def _pulse(self, ctx: Ctx):
         w, h = self.size

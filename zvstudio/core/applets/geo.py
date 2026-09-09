@@ -5,7 +5,6 @@ reuse the viz feedback buffer for MilkDrop-style trails.
 from __future__ import annotations
 
 import math
-import random
 
 from PIL import ImageDraw
 
@@ -182,16 +181,14 @@ class StarfieldApplet(_Viz):
 
         # --- Draw bloom stars as 2×2 solid blocks ---
         if np.any(bloom_mask):
-            bloom_idx = np.where(bloom_mask)[0]
-            for idx in bloom_idx:
-                x0 = ix[idx]
-                y0 = iy[idx]
-                val = g[idx]
-                # 2×2 block from (x0, y0) to (x0+1, y0+1), clipped to canvas
-                x_start = max(0, x0)
-                x_end = min(w, x0 + 2)      # exclusive
-                y_start = max(0, y0)
-                y_end = min(h, y0 + 2)
-                img[y_start:y_end, x_start:x_end] = val
+            bx = ix[bloom_mask]
+            by = iy[bloom_mask]
+            bv = g[bloom_mask]
+            right = bx + 1 < w
+            down = by + 1 < h
+            np.maximum.at(img, (by, bx), bv)
+            np.maximum.at(img, (by[right], bx[right] + 1), bv[right])
+            np.maximum.at(img, (by[down] + 1, bx[down]), bv[down])
+            np.maximum.at(img, (by[right & down] + 1, bx[right & down] + 1), bv[right & down])
 
-        return self._feedback(img.astype(np.float32))
+        return self._feedback(img)

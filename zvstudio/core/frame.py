@@ -167,6 +167,8 @@ def draw(img: Image.Image) -> ImageDraw.ImageDraw:
 
 
 def text_width(s: str, size: int) -> int:
+    if s.isascii():
+        return int(font(size).getlength(s))
     total = 0
     for kind, run in _segments(s):
         if kind == "text":
@@ -199,8 +201,8 @@ def _blit_runs(strip: Image.Image, x0: int, cy: int, s: str, size: int, fill: in
 
 
 def text(img, xy, s, size=16, fill=255, anchor="lm"):
-    # Fast path: no emoji -> exact original behaviour (keeps all anchors intact).
-    if all(seg[0] == "text" for seg in _segments(s)):
+    if s.isascii():
+        # Fast path: pure ASCII contains no emoji segments.
         ImageDraw.Draw(img).text(xy, s, font=font(size), fill=fill, anchor=anchor)
         return img
     # Emoji present: honour horizontal anchor (l/m/r), vertically center on y.
@@ -231,11 +233,9 @@ def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, gap: 
     w = strip.width + gap
     off = offset % w if w else 0
     visible = dest.width - x
-    tile = Image.new("L", (w, strip.height), 0)
-    tile.paste(strip, (0, 0))
-    cur = -off
+    cur = x - off
     while cur < visible:
-        dest.paste(tile, (x + cur, 0))
+        dest.paste(strip, (cur, 0))
         cur += w
 
 

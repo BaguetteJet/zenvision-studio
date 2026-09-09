@@ -20,13 +20,23 @@ class TextApplet(Applet):
         },
     )
 
+    def __init__(self, *a, **k) -> None:
+        super().__init__(*a, **k)
+        self._strip: Image.Image | None = None
+        self._strip_key: tuple | None = None  # (msg, size) the cached strip was built for
+
     def render(self, ctx: Ctx) -> Image.Image:
         w, h = self.size
         img = F.canvas(w, h)
         msg = str(self.config.get("text") or "")
         if not msg:
             return img
-        strip = F.render_text(msg, int(self.config.get("size", 30)))
+        size = int(self.config.get("size", 30))
+        key = (msg, size)
+        if self._strip is None or self._strip_key != key:
+            self._strip = F.render_text(msg, size)
+            self._strip_key = key
+        strip = self._strip
         if strip.width > w:
             F.scroll(strip, int(ctx.t * float(self.config.get("speed", 50))), img)
         else:

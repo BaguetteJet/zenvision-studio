@@ -143,6 +143,8 @@ class NowPlayingApplet(Applet):
         if NowPlayingApplet._watcher is None:
             NowPlayingApplet._watcher = MprisWatcher()
             NowPlayingApplet._watcher.start()
+        self._title: str | None = None
+        self._strip: Image.Image | None = None
 
     def wants_focus(self) -> bool:
         if not self.config.get("preempt") or not self._watcher:
@@ -165,7 +167,11 @@ class NowPlayingApplet(Applet):
             return img
 
         speed = float(self.config.get("speed", 60))
-        title = F.render_text(st["title"], 22)
+        # Rasterising the title is the expensive part; only redo it on track change.
+        if self._title != st["title"]:
+            self._title = st["title"]
+            self._strip = F.render_text(st["title"], 22)
+        title = self._strip
         if title.width > w:
             F.scroll(title, int(ctx.t * speed), img, x=0)
         else:

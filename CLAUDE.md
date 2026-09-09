@@ -58,7 +58,9 @@ web/                 index.html + app.js + style.css — vanilla JS, no build st
 ### Compositor (`core/compositor.py`)
 
 The single source of truth for what's on screen. Runs `_loop()` in a background daemon
-thread at `fps`. Each tick `_pick()` chooses the active applet by priority:
+thread. Each applet renders at its declared `fps` (capped by the daemon's global fps), so
+a 2 fps clock costs a tenth of a 20 fps one; control calls wake the loop early. Each tick
+`_pick()` chooses the active applet by priority:
 
 1. **pinned** — an explicit manual override (CLI `show`, web pin, a `draw`/`layout` from the
    editor). Beats everything; no rotation.

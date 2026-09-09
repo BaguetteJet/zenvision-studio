@@ -15,6 +15,9 @@ from PIL import Image
 from .applets.base import Applet, Ctx
 from .device.base import Panel
 
+# Precomputed point() lookup tables for beat-flash (one per brightness step).
+_FLASH_LUTS = [bytes(min(255, v + add) for v in range(256)) for add in range(141)]
+
 
 @dataclass
 class Scene:
@@ -108,7 +111,9 @@ class Compositor:
         if b <= 0.02:
             return img
         add = int(140 * min(1.0, b))
-        return img.point(lambda v: 255 if v + add > 255 else v + add)
+        if add <= 0:
+            return img
+        return img.point(_FLASH_LUTS[add])
 
     # --- lifecycle -------------------------------------------------------
     def start(self) -> None:
@@ -133,9 +138,10 @@ class Compositor:
                 pass
 
     # --- internals -------------------------------------------------------
-    def _reset_current(self, applet: Applet | None) -> None:
+    def _reset_current(self, applet: Applet | None) -> bool:
+        """Switch to ``applet`` if it differs from the current one; return True on change."""
         if self._cur is applet:
-            return
+            return False
         if self._cur:
             try:
                 self._cur.on_stop()
@@ -149,6 +155,7 @@ class Compositor:
                 applet.on_start()
             except Exception:
                 pass
+        return True
 
     def _pick(self, now: float, scene_idx: list[int]) -> Applet | None:
         # 1) an explicit manual pin wins — a user choice overrides auto-preempt
@@ -169,13 +176,11 @@ class Compositor:
         if self._cur is scene.applet and (now - self._cur_start) >= scene.duration:
             scene_idx[0] = (i + 1) % len(self._scenes)
             return self._scenes[scene_idx[0]].applet
-        if self._cur not in [s.applet for s in self._scenes] and self._pinned is None:
-            return scene.applet
         return scene.applet
 
     def _loop(self) -> None:
         scene_idx = [0]
-        period = 1.0 / max(1.0, self.fps)
+        next_render = 0.0  # when the active applet's next frame is due
         while not self._stop.is_set():
             t0 = time.monotonic()
             if not self.enabled:
@@ -193,9 +198,15 @@ class Compositor:
                 continue
             with self._lock:
                 nxt = self._pick(t0, scene_idx)
-                self._reset_current(nxt)
+                if self._reset_current(nxt):
+                    next_render = 0.0  # draw a newly-active applet immediately
                 cur = self._cur
-            if cur is not None:
+            if cur is None:
+                # Nothing to show; poll slowly so a preempt can still grab focus.
+                self._wake.wait(timeout=0.5)
+                self._wake.clear()
+                continue
+            if t0 >= next_render:
                 ctx = Ctx(t=t0 - self._cur_start, frame=self._cur_frame, size=self.panel.size)
                 try:
                     img = cur.render(ctx)
@@ -212,6 +223,12 @@ class Compositor:
                 except Exception:
                     pass
                 self._cur_frame += 1
-            dt = time.monotonic() - t0
-            if dt < period:
-                time.sleep(period - dt)
+                # Each applet declares its own fps; the daemon fps is the ceiling.
+                period = 1.0 / min(self.fps, max(0.5, cur.fps))
+                next_render = t0 + period
+            # Re-check the pick (rotation / preempt) at least 4x/s; control calls
+            # wake the wait early via self._wake.
+            dt = min(next_render, t0 + 0.25) - t0
+            if dt > 0:
+                self._wake.wait(timeout=dt)
+                self._wake.clear()

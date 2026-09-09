@@ -57,6 +57,13 @@ class CycleApplet(Applet):
             self._children[0].on_start()
             self._child_started = True
 
+    @property
+    def fps(self) -> float:
+        # A cycle renders its active child, so honour the fastest child's rate.
+        if not self._children:
+            return super().fps
+        return max(c.fps for c in self._children)
+
     def on_stop(self) -> None:
         if self._child_started and self._children:
             self._children[self._i].on_stop()
@@ -167,6 +174,12 @@ class LayoutVJApplet(Applet):
             AudioLevel.get().acquire()
         if self._layouts:
             self._layouts[self._i].on_start()
+
+    @property
+    def fps(self) -> float:
+        if not self._layouts:
+            return super().fps
+        return max(layout.fps for layout in self._layouts)
 
     def on_stop(self) -> None:
         if self._layouts:
