@@ -87,6 +87,17 @@ class Compositor:
             self._black_sent = False
             self._wake.set()
 
+    def set_beat_flash(self, on: bool) -> None:
+        on = bool(on)
+        if on == self.beat_flash:
+            return  # idempotent: avoid double acquire()/release() on repeat toggles
+        from .audio import AudioLevel
+        if on:
+            AudioLevel.get().acquire()
+        else:
+            AudioLevel.get().release()
+        self.beat_flash = on
+
     def _flash(self, img):
         """Brighten the whole frame on each audio beat (global beat-flash mode)."""
         try:
@@ -113,6 +124,8 @@ class Compositor:
         if self._thread:
             self._thread.join(timeout=2.0)
             self._thread = None
+        if self.beat_flash:
+            self.set_beat_flash(False)
         if self._cur:
             try:
                 self._cur.on_stop()

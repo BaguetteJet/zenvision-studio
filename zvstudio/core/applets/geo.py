@@ -194,20 +194,4 @@ class StarfieldApplet(_Viz):
                 y_end = min(h, y0 + 2)
                 img[y_start:y_end, x_start:x_end] = val
 
-        # Fallback to Pillow if NumPy is not available
-        if not HAVE_NP:
-            pil_img = Image.new('L', (w, h), 0)
-            d = ImageDraw.Draw(pil_img)
-            for i in range(n):
-                if not inside[i]:
-                    continue
-                sx_i, sy_i = sx[i], sy[i]
-                g_i = int(g[i])
-                if flags[i] or zs[i] > 0.4:
-                    d.point((int(sx_i), int(sy_i)), fill=g_i)
-                else:
-                    # Original ellipse (2×2 bounding box)
-                    d.ellipse([sx_i - 1, sy_i - 1, sx_i + 1, sy_i + 1], fill=g_i)
-            return pil_img
-
         return self._feedback(img.astype(np.float32))
