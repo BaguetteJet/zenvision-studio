@@ -29,7 +29,6 @@ class Compositor:
         self.brightness = 255
         self.enabled = True
         self.beat_flash = False
-        self._flash_audio = False
 
         self._scenes: list[Scene] = []
         self._preempt: list[Applet] = []
@@ -38,10 +37,14 @@ class Compositor:
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
+        self._wake = threading.Event()  # set to interrupt the disabled-idle wait early
         self._cur: Applet | None = None
         self._cur_start = 0.0
         self._cur_frame = 0
         self._preview = Image.new("L", panel.size, 0)
+        self._last_pushed: bytes | None = None  # raw pixel bytes of the last frame sent
+        self._black_sent = False  # whether the current off period already pushed black
+        self._black = Image.new("L", panel.size, 0)  # reused when disabled
 
     def preview(self) -> Image.Image:
         """Last frame rendered (mirrors the panel; works on any backend)."""
@@ -58,15 +61,18 @@ class Compositor:
             self._scenes = list(scenes)
             self._pinned = None
             self._reset_current(None)
+        self._wake.set()
 
     def set_preempt(self, applets: list[Applet]) -> None:
         with self._lock:
             self._preempt = list(applets)
+        self._wake.set()
 
     def pin(self, applet: Applet | None) -> None:
         with self._lock:
             self._pinned = applet
             self._reset_current(None)
+        self._wake.set()
 
     def set_brightness(self, value: int) -> None:
         self.brightness = max(0, min(255, int(value)))
@@ -77,20 +83,9 @@ class Compositor:
 
     def set_enabled(self, on: bool) -> None:
         self.enabled = bool(on)
-
-    def set_beat_flash(self, on: bool) -> None:
-        on = bool(on)
-        if on == self.beat_flash:
-            return
-        from .audio import AudioLevel
-        audio = AudioLevel.get()
-        if on:
-            audio.acquire()
-            self._flash_audio = True
-        elif self._flash_audio:
-            audio.release()
-            self._flash_audio = False
-        self.beat_flash = on
+        if self.enabled:
+            self._black_sent = False
+            self._wake.set()
 
     def _flash(self, img):
         """Brighten the whole frame on each audio beat (global beat-flash mode)."""
@@ -123,10 +118,6 @@ class Compositor:
                 self._cur.on_stop()
             except Exception:
                 pass
-        if self._flash_audio:
-            from .audio import AudioLevel
-            AudioLevel.get().release()
-            self._flash_audio = False
 
     # --- internals -------------------------------------------------------
     def _reset_current(self, applet: Applet | None) -> None:
@@ -172,15 +163,20 @@ class Compositor:
     def _loop(self) -> None:
         scene_idx = [0]
         period = 1.0 / max(1.0, self.fps)
-        black = Image.new("L", self.panel.size, 0)
         while not self._stop.is_set():
             t0 = time.monotonic()
             if not self.enabled:
-                try:
-                    self.panel.push_frame(black)
-                except Exception:
-                    pass
-                time.sleep(0.1)
+                if not self._black_sent:
+                    try:
+                        self.panel.push_frame(self._black)
+                    except Exception:
+                        pass
+                    with self._lock:
+                        self._preview = self._black
+                    self._last_pushed = None  # force a real push next time we re-enable
+                    self._black_sent = True
+                self._wake.wait(timeout=1.0)
+                self._wake.clear()
                 continue
             with self._lock:
                 nxt = self._pick(t0, scene_idx)
@@ -194,7 +190,10 @@ class Compositor:
                         img = img.convert("L")
                     if self.beat_flash:
                         img = self._flash(img)
-                    self.panel.push_frame(img)
+                    raw = img.tobytes()
+                    if raw != self._last_pushed:
+                        self.panel.push_frame(img)
+                        self._last_pushed = raw
                     with self._lock:
                         self._preview = img
                 except Exception:
