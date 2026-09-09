@@ -7,7 +7,7 @@ from __future__ import annotations
 import math
 import random
 
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 from .. import frame as F
 from .base import AppletMeta, Ctx
@@ -147,7 +147,38 @@ class MatrixApplet(_Viz):
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
-        self._heads = None
+        self._heads: list[float] | None = None
+        self._glyphs: list[list[tuple[Image.Image, int, int]]] = []  # [level][char] -> (cell, dx, dy)
+        self._level_of_kk: list[int] = []  # tail row index -> fade level index
+        self._ch = self._tail = 0
+        self._lt = 0.0
+
+    def _build(self, ch: int, tail: int) -> None:
+        """Rasterize every glyph once per fade level; per-frame we only blit the
+        cached bitmaps, which is far cheaper than FreeType text rendering."""
+        f = F.cjk_font(ch)
+        pad = ch  # headroom so negative font bearings never clip
+        base: list[tuple[Image.Image, int, int]] = []
+        for glyph in self.GLYPH:
+            buf = Image.new("L", (ch + 2 * pad, ch + 2 * pad), 0)
+            ImageDraw.Draw(buf).text((pad, pad), glyph, font=f, fill=255)
+            bbox = buf.getbbox()
+            if bbox is None:
+                base.append((Image.new("L", (1, 1), 0), 0, 0))
+                continue
+            base.append((buf.crop(bbox), bbox[0] - pad, bbox[1] - pad))
+        levels: list[int] = []
+        self._glyphs = []
+        self._level_of_kk = []
+        for kk in range(tail):
+            gv = 255 if kk == 0 else max(30, int(220 - kk * 200 / tail))
+            if gv not in levels:
+                levels.append(gv)
+                lut = bytes(round(v * gv / 255) for v in range(256))
+                self._glyphs.append([(g.point(lut), dx, dy) for g, dx, dy in base])
+            self._level_of_kk.append(levels.index(gv))
+        self._ch = ch
+        self._tail = tail
 
     def render(self, ctx: Ctx):
         w, h = self.size
@@ -156,24 +187,28 @@ class MatrixApplet(_Viz):
         cw = max(4, int(ch * 0.78))
         cols = max(1, w // cw)
         tail = int(h / ch) + 3
-        if self._heads is None or len(self._heads) != cols:
+        if self._heads is None or len(self._heads) != cols or self._ch != ch or self._tail != tail:
             self._heads = [random.uniform(-h, 0) for _ in range(cols)]
-        img = F.canvas(w, h)
-        d = ImageDraw.Draw(img)
-        f = F.cjk_font(ch)
+            self._build(ch, tail)
+        dt = max(0.0, min(0.1, ctx.t - self._lt))
+        self._lt = ctx.t
         speedf = max(0.2, self.config.get("speed", 150) / 100.0)
         audio = self.config.get("audio", False)
         level = a.level if audio and a.ok else 0.4
-        spd = ch * (0.6 + 1.8 * level) * speedf
+        spd = ch * (0.6 + 1.8 * level) * speedf  # px per second
+        img = F.canvas(w, h)
+        glyphs = self._glyphs
+        level_of_kk = self._level_of_kk
+        n = len(self.GLYPH)
         for c in range(cols):
-            self._heads[c] += spd / 30.0
-            if self._heads[c] - tail * ch > h:
-                self._heads[c] = random.uniform(-h * 0.5, 0)
-            hy = self._heads[c]
+            hy = self._heads[c] + spd * dt
+            if hy - tail * ch > h:
+                hy = random.uniform(-h * 0.5, 0)
+            self._heads[c] = hy
             x = c * cw
             for kk in range(tail):
                 y = hy - kk * ch
                 if -ch < y < h:
-                    g = 255 if kk == 0 else max(30, int(220 - kk * 200 / tail))
-                    d.text((x, y), random.choice(self.GLYPH), font=f, fill=g)
+                    cell, dx, dy = glyphs[level_of_kk[kk]][random.randrange(n)]
+                    img.paste(cell, (x + dx, int(y) + dy))
         return img
