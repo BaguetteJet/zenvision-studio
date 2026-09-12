@@ -1,8 +1,16 @@
+> **Fork Notice**   
+> This project is a fork of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem)
+
+> **Fork Purpose**   
+> &nbsp; 1. **Performance** - improve efficiency to increase battery life.   
+> &nbsp; 2. **Personalization** - update and add applets to my own preference.   
+> &nbsp; 3. **Kubuntu** - upstream repository only packages for Arch/CachyOS.   
+
 <div align="center">
 
 # <img src="zvstudio/web/logo.png" width="38" align="center"> zenvision-studio
 
-**Turn the lid OLED of an ASUS Zenbook into a live dashboard and a beat-reactive VJ screen — on Linux.**
+**Turn the lid OLED of an ASUS Zenbook into a live dashboard on Linux.**
 
 🟢 *The first open-source Linux support for the ASUS **ZenVision** lid OLED.*
 The protocol was reverse-engineered from scratch (Ghidra on MyASUS) and lives in the
@@ -12,7 +20,7 @@ companion driver **[zenvision-linux](https://github.com/tarpediem/zenvision-linu
 
 *Audio-reactive visualisers on the actual lid OLED of an ASUS Zenbook 14X OLED Space Edition (UX5401ZAS).*
 
-[![CI](https://github.com/tarpediem/zenvision-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/tarpediem/zenvision-studio/actions)
+[![CI](https://github.com/baguettejet/zenvision-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/baguettejet/zenvision-studio/actions)
 &nbsp;·&nbsp; MIT &nbsp;·&nbsp; cross-desktop &nbsp;·&nbsp; control it from your phone
 
 </div>
@@ -175,21 +183,19 @@ web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
 
 ## Roadmap
 
-**Already shipped** (was the v2 wishlist): in-browser **timeline animation editor**
-(keyframes + tween + easing + loop), weather + **VU-meter** applets, the full
-audio-reactive visualiser / Auto-VJ suite, drag-and-drop zone layouts, and the
-now-playing **preempt** trigger.
-
-**Next:** richer triggers (notifications, lid events, idle) · more applets
-(RSS/ticker, calendar) · more panels behind the `Panel` abstraction · PyPI / AUR
-packaging.
+- ✅ Update and optimize starfield applet (my fav)
+- ✅ Optimize display process to use less resources
+- ✅ Optimize remaining applets
+- Correct date/time on lid close animation
+- Fix default animation on suspend
+- Package for Kubuntu/Ubuntu/Debian
 
 ## Credits
 
-Built on the reverse-engineered protocol documented in
-**[zenvision-linux](https://github.com/tarpediem/zenvision-linux)**. Unofficial; not
-affiliated with or endorsed by ASUS.
+Originally created by [tarpediem](https://github.com/tarpediem), who built the project using the reverse-engineered protocol documented in [zenvision-linux](https://github.com/tarpediem/zenvision-linux). This project is unofficial and is not affiliated with or endorsed by ASUS. 
+
+This fork is maintained and updated by [BaguetteJet](https://github.com/BaguetteJet), with AI assistance.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)
