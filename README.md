@@ -1,10 +1,9 @@
-> **Fork Notice**   
-> This project is a fork of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem)
-
-> **Fork Purpose**   
-> &nbsp; 1. **Performance** - improve efficiency to increase battery life.   
-> &nbsp; 2. **Personalization** - update and add applets to my own preference.   
-> &nbsp; 3. **Kubuntu** - upstream repository only packages for Arch/CachyOS.   
+> [!IMPORTANT]   
+> This project is a custom fork of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), and focuses on the following:   
+>  
+> 1. **Performance** - improving efficiency to extend battery life.   
+> 2. **Personalization** - updating and adding applets to my own preference.   
+> 3. **Kubuntu** - adding Kubuntu/Debian support (upstream only packages for Arch/CachyOS)
 
 <div align="center">
 
