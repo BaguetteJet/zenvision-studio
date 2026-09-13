@@ -43,3 +43,17 @@ def test_frames_applet_empty_is_blank():
     fa = FramesApplet(size=SIZE, frames=[])
     img = fa.render(Ctx(t=1.23, frame=5, size=SIZE))
     assert img.size == SIZE and img.mode == "L"
+
+
+def test_player_advances_by_its_own_fps():
+    from zvstudio.core.applets.player import PlayerApplet
+
+    a = Image.new("L", SIZE, 0)
+    b = Image.new("L", SIZE, 255)
+    p = PlayerApplet(size=SIZE, config={"path": "x", "fps": 10})
+    p._loaded = "x"
+    p._frames = [a, b]
+    # index = int(t * fps) % n, decoupled from the tick rate (ctx.frame)
+    assert p.render(Ctx(t=0.00, frame=99, size=SIZE)).getpixel((0, 0)) == 0
+    assert p.render(Ctx(t=0.10, frame=99, size=SIZE)).getpixel((0, 0)) == 255
+    assert p.render(Ctx(t=0.20, frame=99, size=SIZE)).getpixel((0, 0)) == 0

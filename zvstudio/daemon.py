@@ -16,7 +16,7 @@ class Daemon:
     def __init__(self, backend: str | None = None) -> None:
         self.panel = get_panel(backend)
         self.cfg = cfg.load()
-        self.comp = Compositor(self.panel, fps=self.cfg.get("fps", 20))
+        self.comp = Compositor(self.panel, fps=self.cfg.get("fps", 60) or 60)
         self._applets: dict[str, object] = {}
         self.comp.set_brightness(self.cfg.get("brightness", 255))
         self.apply_config()
@@ -59,6 +59,11 @@ class Daemon:
             "brightness": self.comp.brightness,
             "flash": self.comp.beat_flash,
             "current": self.comp.current_key(),
+            "fps": {
+                "cap": self.comp.fps,
+                "declared": self.comp.current_fps(),
+                "actual": self.comp.actual_fps,
+            },
             "playlist": self.cfg.get("playlist", []),
             "preempt": self.cfg.get("preempt", []),
         }

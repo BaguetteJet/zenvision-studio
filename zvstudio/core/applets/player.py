@@ -79,4 +79,6 @@ class PlayerApplet(Applet):
             img = F.canvas(*self.size)
             F.text(img, (self.size[0] // 2, self.size[1] // 2), "no media", size=16, anchor="mm")
             return img
-        return self._frames[ctx.frame % len(self._frames)]
+        # Advance by our own fps (decoupled from the compositor's tick rate), matching
+        # FramesApplet, so playback speed is right even when renders lag or the daemon caps fps.
+        return self._frames[int(ctx.t * self.fps) % len(self._frames)]

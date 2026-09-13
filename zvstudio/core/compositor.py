@@ -6,6 +6,7 @@ panel's flicker-free streaming mode.
 """
 from __future__ import annotations
 
+import collections
 import threading
 import time
 from dataclasses import dataclass
@@ -26,7 +27,7 @@ class Scene:
 
 
 class Compositor:
-    def __init__(self, panel: Panel, fps: float = 20.0) -> None:
+    def __init__(self, panel: Panel, fps: float = 60.0) -> None:
         self.panel = panel
         self.fps = fps
         self.brightness = 255
@@ -48,6 +49,7 @@ class Compositor:
         self._last_pushed: bytes | None = None  # raw pixel bytes of the last frame sent
         self._black_sent = False  # whether the current off period already pushed black
         self._black = Image.new("L", panel.size, 0)  # reused when disabled
+        self._render_times: collections.deque = collections.deque(maxlen=120)
 
     def preview(self) -> Image.Image:
         """Last frame rendered (mirrors the panel; works on any backend)."""
@@ -57,6 +59,20 @@ class Compositor:
     def current_key(self) -> str | None:
         ap = self._cur
         return ap.meta.key if ap is not None else None
+
+    def current_fps(self) -> float:
+        ap = self._cur
+        return ap.fps if ap is not None else 0.0
+
+    @property
+    def actual_fps(self) -> float:
+        """Measured render rate of the active applet (window of recent renders)."""
+        with self._lock:
+            t = list(self._render_times)
+        if len(t) < 2:
+            return 0.0
+        dt = t[-1] - t[0]
+        return (len(t) - 1) / dt if dt > 0 else 0.0
 
     # --- configuration ---------------------------------------------------
     def set_playlist(self, scenes: list[Scene]) -> None:
@@ -89,6 +105,9 @@ class Compositor:
         if self.enabled:
             self._black_sent = False
             self._wake.set()
+        else:
+            with self._lock:
+                self._render_times.clear()
 
     def set_beat_flash(self, on: bool) -> None:
         on = bool(on)
@@ -219,6 +238,7 @@ class Compositor:
                         self.panel.push_frame(img)
                         self._last_pushed = raw
                     with self._lock:
+                        self._render_times.append(time.monotonic())
                         self._preview = img
                 except Exception:
                     pass
@@ -226,9 +246,11 @@ class Compositor:
                 # Each applet declares its own fps; the daemon fps is the ceiling.
                 period = 1.0 / min(self.fps, max(0.5, cur.fps))
                 next_render = t0 + period
-            # Re-check the pick (rotation / preempt) at least 4x/s; control calls
-            # wake the wait early via self._wake.
-            dt = min(next_render, t0 + 0.25) - t0
+            # Wait until the next frame is due (or 0.25s for rotation/preempt checks),
+            # computed from NOW — the render + panel push above took time, so the wait
+            # must compensate or every frame lands period + push_time apart.
+            now = time.monotonic()
+            dt = min(next_render, now + 0.25) - now
             if dt > 0:
                 self._wake.wait(timeout=dt)
                 self._wake.clear()

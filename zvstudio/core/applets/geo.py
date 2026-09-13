@@ -91,7 +91,7 @@ class CubeApplet(_Viz):
 
 class StarfieldApplet(_Viz):
     meta = AppletMeta(key="starfield", name="Starfield", description="Warp stars (beat-reactive)",
-                      config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                      config_schema={"fps": {"type": "int", "default": 20, "label": "FPS"},
                                      "count": {"type": "int", "default": 90, "label": "Stars"},
                                      "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 66}, "warp": {**WARP, "default": 0}})

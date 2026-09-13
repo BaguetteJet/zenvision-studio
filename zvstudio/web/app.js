@@ -37,6 +37,17 @@ async function refreshStatus() {
   try {
     const s = await api("/api/status");
     $("#status").textContent = `${s.backend} · ${s.enabled ? "on" : "off"}`;
+    const f = s.fps;
+    if (!f) {
+      $("#fps").textContent = "?";
+      $("#fps").title = "daemon reports no fps data — restart zvstudio daemon";
+    } else if (f.actual > 0) {
+      $("#fps").textContent = `${Math.round(f.actual)}fps`;
+      $("#fps").title = `${s.current} · applet declares ${f.declared.toFixed(0)}fps · daemon cap ${f.cap.toFixed(0)}fps`;
+    } else {
+      $("#fps").textContent = "–";
+      $("#fps").title = "not rendering (panel off or nothing active)";
+    }
     $("#power").classList.toggle("on", s.enabled);
     $("#flash").classList.toggle("on", s.flash);
     $("#brightness").value = s.brightness; $("#brightval").textContent = s.brightness;
