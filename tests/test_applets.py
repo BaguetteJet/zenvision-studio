@@ -45,6 +45,23 @@ def test_frames_applet_empty_is_blank():
     assert img.size == SIZE and img.mode == "L"
 
 
+def test_nowplaying_layout_with_art():
+    from zvstudio.core.applets.nowplaying import NowPlayingApplet
+
+    ap = NowPlayingApplet(size=SIZE)
+    ap._title = None
+    ap._strip = None
+    with ap._art_lock:
+        ap._art = Image.new("L", (48, 48), 200)
+        ap._art_url = "x"
+    ap._watcher.state = {"playing": True, "title": "Test Song", "artist": "An Artist",
+                         "pos": 0.0, "length": 100.0, "changed_at": 0.0, "art_url": "x"}
+    img = ap.render(Ctx(t=0.0, frame=0, size=SIZE))
+    assert img.getpixel((25, 32)) == 200        # art square present
+    assert img.getpixel((64, 12)) > 0           # title sits high, next to the art
+    assert img.getpixel((64, 44)) > 0           # artist below the title, no overlap band
+
+
 def test_player_advances_by_its_own_fps():
     from zvstudio.core.applets.player import PlayerApplet
 

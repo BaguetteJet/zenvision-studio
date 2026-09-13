@@ -217,16 +217,16 @@ def text(img, xy, s, size=16, fill=255, anchor="lm"):
     return img
 
 
-def render_text(s: str, size: int, fill: int = 255) -> Image.Image:
+def render_text(s: str, size: int, fill: int = 255, height: int = HEIGHT) -> Image.Image:
     """Render a string to a tightly-sized grayscale strip (for scrolling)."""
     w = max(1, text_width(s, size))
-    strip = Image.new("L", (w, HEIGHT), 0)
-    _blit_runs(strip, 0, HEIGHT // 2, s, size, fill)
+    strip = Image.new("L", (w, height), 0)
+    _blit_runs(strip, 0, height // 2, s, size, fill)
     return strip
 
 
-def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, gap: int = 24) -> None:
-    """Blit a horizontally-scrolling strip into ``dest`` at column ``x``.
+def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, y: int = 0, gap: int = 24) -> None:
+    """Blit a horizontally-scrolling strip into ``dest`` at column ``x``, row ``y``.
 
     Wraps with a gap so long text marquees seamlessly. ``offset`` advances left.
     """
@@ -235,7 +235,7 @@ def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, gap: 
     visible = dest.width - x
     cur = x - off
     while cur < visible:
-        dest.paste(strip, (cur, 0))
+        dest.paste(strip, (cur, y))
         cur += w
 
 
