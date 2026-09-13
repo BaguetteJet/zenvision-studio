@@ -18,6 +18,9 @@ from .device.base import Panel
 
 # Precomputed point() lookup tables for beat-flash (one per brightness step).
 _FLASH_LUTS = [bytes(min(255, v + add) for v in range(256)) for add in range(141)]
+# Software brightness: per-frame scaling LUTs. The panel firmware ignores the
+# 0x31 brightness command on UX5401ZAS, so dimming is done here (guaranteed).
+_BRIGHT_LUTS = [bytes(round(v * b / 255) for v in range(256)) for b in range(256)]
 
 
 @dataclass
@@ -233,6 +236,8 @@ class Compositor:
                         img = img.convert("L")
                     if self.beat_flash:
                         img = self._flash(img)
+                    if self.brightness < 255:
+                        img = img.point(_BRIGHT_LUTS[self.brightness])
                     raw = img.tobytes()
                     if raw != self._last_pushed:
                         self.panel.push_frame(img)

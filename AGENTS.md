@@ -81,6 +81,9 @@ stays 60 fps on hardware. The achieved rate is measured (`Compositor.actual_fps`
 surfaced through `/api/status` (`fps: {cap, declared, actual}`) and the web UI status pill.
 `tests/test_fps.py` asserts every applet's measured rate matches `min(daemon_fps,
 applet_fps)` (0.5 fps floor), including a slow-push panel regression test.
+Brightness is applied **in software** (per-frame LUT, `_BRIGHT_LUTS`) — the panel firmware
+ignores the `31 02 BB 03` hardware command on UX5401ZAS (see PROTOCOL.md); the command is
+still sent as best-effort.
 
 ### Applets (`core/applets/`)
 

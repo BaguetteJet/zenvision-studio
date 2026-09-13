@@ -108,6 +108,11 @@ No per-frame begin/apply ⇒ no blanking between frames.
 The `BB` byte in `31 02 BB 03`. The exact scale isn't pinned down; `0xff` works.
 Tune by eye.
 
+> ⚠️ (IK20260913) The `31 02 BB 03` command has **no visible effect** -
+> neither mid-stream, in static-image mode, nor at stream start. zenvision-studio
+> therefore dims frames **in software** (per-frame LUT scaling before encoding);
+> the command is still sent as a best-effort for models that may honor it.
+
 ## Notes / open questions
 
 * The status endpoint `0x82` always returns 512 zero bytes regardless of command,

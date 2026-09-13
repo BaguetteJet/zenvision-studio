@@ -102,3 +102,21 @@ def test_slow_panel_push_does_not_slow_the_schedule():
     comp.stop()
     rate = (len(stamps) - 1) / (stamps[-1] - stamps[0])
     assert abs(rate - 60.0) <= 10.0, f"expected ~60 fps despite 9.4ms pushes, got {rate:.1f}"
+
+
+def test_software_brightness_dims_frames():
+    # The panel firmware ignores the hardware brightness command on UX5401ZAS,
+    # so the compositor scales frames in software. 255 -> full, 128 -> half.
+    from PIL import Image
+
+    from zvstudio.core.applets.frames import FramesApplet
+
+    white = Image.new("L", SIZE, 255)
+    ap = FramesApplet(size=SIZE, frames=[white])
+    comp = Compositor(MockPanel(), fps=20.0)
+    comp.set_playlist([Scene(ap, duration=999)])
+    comp.set_brightness(128)
+    comp.start()
+    time.sleep(0.2)
+    comp.stop()
+    assert comp.preview().getpixel((0, 0)) == 128, "brightness 128 should halve a 255 frame"

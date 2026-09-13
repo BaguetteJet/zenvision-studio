@@ -15,6 +15,7 @@ from .applets.fx import (
     RippleApplet,
 )
 from .applets.geo import CubeApplet, StarfieldApplet, TrianglesApplet
+from .applets.levels import LevelBarsApplet
 from .applets.logo import LogoApplet
 from .applets.nowplaying import NowPlayingApplet
 from .applets.player import PlayerApplet
@@ -36,7 +37,7 @@ BUILTIN = [
     MoireApplet, MetaballsApplet, RippleApplet, FireApplet, MatrixApplet,
     TrianglesApplet, CubeApplet, StarfieldApplet,
     CycleApplet, LayoutVJApplet,
-    LogoApplet, PlayerApplet, TextApplet, WeatherApplet,
+    LogoApplet, PlayerApplet, TextApplet, WeatherApplet, LevelBarsApplet,
 ]
 
 
