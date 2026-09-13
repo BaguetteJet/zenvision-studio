@@ -5,6 +5,10 @@
 > 2. **Personalization** - updating and adding applets to my own preference.   
 > 3. **Kubuntu** - adding Kubuntu/Debian support (upstream only packages for Arch/CachyOS)
 
+> [!WARNING]   
+> **OLED Burn-In Risk**   
+> Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
+
 <div align="center">
 
 # <img src="zvstudio/web/logo.png" width="38" align="center"> zenvision-studio
