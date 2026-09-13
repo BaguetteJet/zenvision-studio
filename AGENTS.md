@@ -24,8 +24,10 @@ ZVSTUDIO_BACKEND=mock zvstudio daemon    # force mock (no device)
 
 # Lint + tests (must pass; CI runs these on py3.10–3.12 with ZVSTUDIO_BACKEND=mock)
 ruff check .
-pytest -q
+pytest -q                    # includes tests/test_fps.py — drives every applet through
+                             # the real compositor loop (~25 s; run it alone while iterating)
 pytest tests/test_api.py::test_pin_applet   # single test
+python tests/profile_applets.py             # per-applet render-cost benchmark (standalone, not a pytest)
 ```
 
 `ruff` config lives in `pyproject.toml` (line-length 110; rules `E,F,I,UP,B`). There is no
@@ -73,6 +75,13 @@ frame is cached in `_preview` so **any** backend (including a real USB panel you
 back) can mirror to the browser. `beat_flash` brightens the whole frame on each audio beat.
 Mutating state (`set_playlist`, `pin`, `set_preempt`) is lock-guarded.
 
+The wait between frames is computed **after** `render()` + `push_frame()` complete (a real
+USB push costs ~9 ms), so panel latency never lengthens the cadence — a declared 60 fps
+stays 60 fps on hardware. The achieved rate is measured (`Compositor.actual_fps`) and
+surfaced through `/api/status` (`fps: {cap, declared, actual}`) and the web UI status pill.
+`tests/test_fps.py` asserts every applet's measured rate matches `min(daemon_fps,
+applet_fps)` (0.5 fps floor), including a slow-push panel regression test.
+
 ### Applets (`core/applets/`)
 
 An applet subclasses `Applet` (`base.py`), sets a class-level `AppletMeta` (key, name,
@@ -80,6 +89,10 @@ An applet subclasses `Applet` (`base.py`), sets a class-level `AppletMeta` (key,
 since active), `frame`, and `size`. Keep `render()` cheap — it runs every frame. Config
 options must be declared in `meta.config_schema` (`{field: {type, default, label, …}}`) so
 the UI/CLI can expose them generically; `self.config` merges declared defaults with overrides.
+Declare the desired rate with an `"fps"` schema field (the compositor paces at
+`min(daemon_fps, applet_fps)`); animate from `ctx.t`, **never** `ctx.frame` or per-render
+counters, so speed survives daemon caps and slow pushes — sequence players index frames by
+`int(ctx.t * self.fps)` (`frames.py`, `player.py`).
 
 Built-ins are grouped: `clock`, `sysmon`, `nowplaying` (MPRIS via dbus-next, preempting),
 `weather`, `text`, `player` (image/gif/video), `logo`; visualisers in `viz.py`
