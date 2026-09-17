@@ -141,56 +141,6 @@ $("#bi-resume").onclick = async () => { await api("/api/resume", "POST", {}); sw
 $("#speed").oninput = (e) => { $("#speedval").textContent = e.target.value; };
 $("#speed").onchange = async (e) => { await cmd("speed", +e.target.value); };
 
-/* ---- editable tooltips for time modes + themes ---- */
-const TIP_SECTIONS = [
-  { name: "clock", items: [1, 2], label: (n) => `Time mode ${n}` },
-  { name: "theme", items: [1, 2, 3, 4], label: (n) => `Theme ${n}` },
-];
-const TIP_DEFAULTS = {
-  "clock:1": "Time mode 1 — the lid close animation; battery icon available",
-  "clock:2": "Time mode 2 — clock with screen sweep",
-  "theme:1": "Built-in theme 1",
-  "theme:2": "Built-in theme 2",
-  "theme:3": "Built-in theme 3",
-  "theme:4": "Built-in theme 4",
-};
-let tips = {};
-try { tips = JSON.parse(localStorage.getItem("zv.tips") || "{}"); } catch (e) { tips = {}; }
-let tipEditing = null;  // section in tooltip-edit mode: "clock" | "theme" | null
-const tip = (key) => tips[key] || TIP_DEFAULTS[key] || "";
-function setTip(key, text) {
-  if (text) tips[key] = text; else delete tips[key];
-  localStorage.setItem("zv.tips", JSON.stringify(tips));
-}
-function renderSections() {
-  $$(".tip-edit").forEach((b) => b.classList.toggle("on", b.dataset.sec === tipEditing));
-  for (const sec of TIP_SECTIONS) {
-    const grid = $(`[data-grid="${sec.name}"]`); if (!grid) continue;
-    grid.innerHTML = "";
-    for (const v of sec.items) {
-      const key = `${sec.name}:${v}`;
-      if (tipEditing === sec.name) {
-        const inp = document.createElement("input");
-        inp.type = "text"; inp.className = "tip-in";
-        inp.value = tip(key); inp.placeholder = "tooltip text";
-        inp.onchange = () => setTip(key, inp.value.trim());
-        inp.onkeydown = (e) => { if (e.key === "Enter") inp.blur(); };
-        grid.appendChild(inp);
-      } else {
-        const b = document.createElement("button");
-        b.className = "cmd"; b.dataset.name = sec.name; b.dataset.value = v;
-        b.textContent = sec.label(v); b.title = tip(key);
-        b.onclick = async () => { await cmd(sec.name, v); refreshStatus(); };
-        grid.appendChild(b);
-      }
-    }
-  }
-}
-$$(".tip-edit").forEach((b) => b.onclick = () => {
-  tipEditing = tipEditing === b.dataset.sec ? null : b.dataset.sec;
-  renderSections();
-});
-
 /* ---- tabs ---- */
 function switchTab(name) {
   $$(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
@@ -415,7 +365,7 @@ async function loadLayouts() {
 }
 
 /* ---- boot ---- */
-loadCur(); drawStrip(); updateCount(); startPreview(); renderSections();
+loadCur(); drawStrip(); updateCount(); startPreview();
 loadApplets().then(() => { renderZones(); refreshStatus(); });
 loadLayouts();
 setInterval(refreshStatus, 3000);

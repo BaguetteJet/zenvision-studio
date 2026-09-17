@@ -8,7 +8,7 @@ from pathlib import Path
 APP = "zvstudio"
 
 DEFAULT = {
-    "brightness": 32,
+    "brightness": 128,
     "fps": 60,
     "playlist": [{
         "applet": "starfield",
