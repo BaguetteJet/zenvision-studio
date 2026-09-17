@@ -129,11 +129,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   border-radius: 6px; padding: 5px; }
 
 /* drawer */
-.drawer { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: flex-end;
-  justify-content: center; z-index: 20; }
+.drawer { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center;
+  justify-content: center; z-index: 20; padding: 20px; }
 .drawer.open { display: flex; }
-.drawer-card { width: min(560px, 100%); background: var(--bg2); border: 1px solid var(--line);
-  border-radius: 16px 16px 0 0; padding: 18px; }
+.drawer-card { width: min(560px, 100%); max-height: 90vh; overflow-y: auto; background: var(--bg2);
+  border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 12px; }
 .fields { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 5px; }
@@ -144,7 +144,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .drawer-foot { margin-top: 16px; } .drawer-foot .cta { width: 100%; }
 
 .block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-top: 14px; }
-.bh { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px; }
+.bh { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px;
+  display: flex; align-items: center; gap: 8px; }
+.bh .tip-edit { margin-left: auto; }
 .brow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .brow #split { flex: 1; }
 .sel { background: var(--bg2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 9px; }
@@ -175,6 +177,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   padding: 8px 10px; cursor: pointer; font-size: 13px; }
 .cmd:hover { border-color: var(--accent); }
 .cmd.on { background: var(--accent); color: #061b20; border-color: var(--accent); }
+.tip-edit { padding: 2px 7px; font-size: 11px; }
+.tip-edit.on { background: var(--accent); color: #061b20; border-color: var(--accent); }
+.tip-in { width: 100%; background: var(--bg2); border: 1px solid var(--accent); color: var(--fg);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+#speed { width: 160px; }
 .cmd-row .hint { color: var(--muted); font-size: 12px; }
 
 @media (max-width: 480px) { #screen { max-width: 90vw; } .screen-note { max-width: 90vw; } }
