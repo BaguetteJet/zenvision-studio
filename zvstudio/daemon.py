@@ -83,16 +83,25 @@ class Daemon:
 
     def set_enabled(self, on: bool) -> None:
         self.comp.set_enabled(on)
+        if not on:
+            # Power off pairs with the burn-in sweep off (MyASUS recovery sequence).
+            try:
+                self.panel.send_command("sweep", False)
+            except Exception:
+                pass
 
     def run_command(self, name: str, value=None) -> dict:
         """Send a built-in content / panel-setting command (PROTOCOL.md v2).
 
         ``clock``/``theme`` hand the panel to its own engine: the compositor
-        pauses rendering until custom content is resumed. ``status`` queries
-        what the panel is currently playing instead of sending anything.
+        pauses rendering until custom content is resumed. Clock layout 2 also
+        enables the screen sweep (the MyASUS pairing). ``status`` queries what
+        the panel is currently playing instead of sending anything.
         """
         if name == "status":
             return {"engine": self.panel.query_engine()}
+        if name == "clock" and int(value) == 2:
+            self.panel.send_command("sweep", True)  # clock 2 is paired with sweep on
         self.panel.send_command(name, value)
         if name in ("clock", "theme"):
             self.comp.set_builtin(f"{name}:{value}")

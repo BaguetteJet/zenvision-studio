@@ -56,12 +56,25 @@ def test_command_endpoint():
         client.post("/api/command", json={"name": "battery", "value": True})
         assert d.comp.builtin == "clock:1"
         assert client.get("/api/status").json()["builtin"] == "clock:1"
-        # status query returns what the panel says is playing (mock: None)
+        # status query returns the panel's engine reply ('01' = clock engine)
         r = client.post("/api/command", json={"name": "status"}).json()
-        assert r["ok"] is True and "engine" in r
-        # resuming custom content clears builtin mode
+        assert r["ok"] is True and r["engine"] == "01"
+        # clock layout 2 is paired with the screen sweep on
+        client.post("/api/command", json={"name": "clock", "value": 2})
+        assert d.panel.commands[-2:] == [("sweep", True), ("clock", 2)]
+        # resuming custom content clears builtin mode and returns to custom engine
         client.post("/api/resume", json={})
         assert d.comp.builtin is None
+        assert d.panel.query_engine() == "07"
+    finally:
+        d.stop()
+
+
+def test_power_off_sends_sweep_off():
+    client, d = make_client()
+    try:
+        client.post("/api/power", json={"on": False})
+        assert ("sweep", False) in d.panel.commands
     finally:
         d.stop()
 

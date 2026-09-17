@@ -35,9 +35,6 @@ _BODY_POS = np.flatnonzero(_BP >= 4)
 # setting that does not take over the display.
 TAKEOVER_COMMANDS = ("clock", "theme")
 
-# First byte of the EP 0x82 reply buffer names the active content engine.
-_ENGINES = {ord("1"): "clock", ord("2"): "theme", ord("7"): "custom"}
-
 
 def encode(img: Image.Image, width: int = 256, height: int = 64) -> bytes:
     img = img.convert("L")
@@ -121,6 +118,7 @@ class ZenVisionPanel(Panel):
         self.dev = None
         self._bright = 0xFF
         self._builtin = False  # panel is playing its own content, not host frames
+        self._sweep = False  # panel's burn-in screen-sweep is latched on
 
     def open(self) -> None:
         import usb.core
@@ -142,10 +140,25 @@ class ZenVisionPanel(Panel):
     def _b(self, data: bytes) -> None:
         self.dev.write(EP_BULK, data, timeout=3000)
 
+    def _sweep_off(self) -> None:
+        self._c(_cmd(0x31, 0x02, 0x00, 0x04))  # screen sweep off
+        self._sweep = False
+
+    def _ensure_sweep_off(self) -> None:
+        """One-off sweep-off during pure frame pushes (flag-tracked, no-op normally).
+
+        The burn-in sweep is latched on the panel (e.g. by clock layout 2) and
+        its animation would otherwise sweep over streamed frames — a periodic
+        stutter with no host involvement.
+        """
+        if self._sweep:
+            self._sweep_off()
+
     def show_image(self, img: Image.Image, brightness: int = 255) -> None:
         fb = encode(img, self.width, self.height)
         self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x01))     # content mode 1 = custom image
         self._b(fb)                                           # pixels — shown immediately, no apply step
+        self._sweep_off()                                     # guarantee no sweep over custom content
         if brightness != self._bright:
             self.set_brightness(brightness)
         self._builtin = False
@@ -153,11 +166,13 @@ class ZenVisionPanel(Panel):
     def begin_stream(self, brightness: int = 255) -> None:
         self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x02))     # content mode 2 = custom stream
         self.set_brightness(brightness)
+        self._sweep_off()                                     # guarantee no sweep over streamed frames
         self._builtin = False
 
     def push_frame(self, img: Image.Image) -> None:
         if self._builtin:
             self.begin_stream(self._bright)  # built-in content was playing — retake control
+        self._ensure_sweep_off()
         self._b(encode(img, self.width, self.height))
 
     def set_brightness(self, brightness: int) -> None:
@@ -168,23 +183,30 @@ class ZenVisionPanel(Panel):
         """Send a built-in content / panel-setting command (PROTOCOL.md v2)."""
         data = build_command(name, value)
         self._c(data)
-        if name in TAKEOVER_COMMANDS:
+        if name == "sweep":
+            self._sweep = bool(value)
+        elif name in TAKEOVER_COMMANDS:
             self._builtin = True
 
     def query_engine(self) -> str | None:
-        """Ask what content engine is playing (F1 03 reply on EP 0x82)."""
+        """Ask what content engine is playing.
+
+        ``F1 03`` triggers a reply on EP 0x82 whose first bytes are ASCII:
+        ``01`` clock, ``02`` theme, ``07`` custom image.
+        """
         if self.dev is None:
             return None
         try:
-            # The reply slot is single-buffered and answers every command — drain
-            # the stale reply first, then ask, then read the fresh one.
-            self._c(_cmd(0x30, 0x05, 0x04, 0, 0, 0, 0x01))  # benign battery-off
+            # The reply slot is single-buffered and answers every command — send
+            # the query twice: the first read drains the stale reply, the second
+            # returns the fresh one for this very F1 03.
+            self._c(_cmd(0xF1, 0x03))
             self.dev.read(EP_REPLY, 512, timeout=500)
             self._c(_cmd(0xF1, 0x03))
             raw = bytes(self.dev.read(EP_REPLY, 512, timeout=500))
         except Exception:
             return None
-        return _ENGINES.get(raw[0] if raw else 0)
+        return raw.rstrip(b"\x00").decode("ascii", errors="replace") or None
 
     def close(self) -> None:
         if self.dev is not None:

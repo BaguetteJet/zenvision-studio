@@ -25,6 +25,7 @@ class MockPanel(Panel):
         self.brightness = 255
         self.frames_pushed = 0
         self.commands: list[tuple] = []  # (name, value) recorded by send_command
+        self._engine: str | None = "07"  # engine-state reply: 01 clock / 02 theme / 07 custom
         self.save_dir = save_dir or os.environ.get("ZVSTUDIO_MOCK_DIR")
         if self.save_dir:
             os.makedirs(self.save_dir, exist_ok=True)
@@ -46,12 +47,15 @@ class MockPanel(Panel):
 
     def show_image(self, img: Image.Image, brightness: int = 255) -> None:
         self.brightness = brightness
+        self._engine = "07"
         self._put(img)
 
     def begin_stream(self, brightness: int = 255) -> None:
         self.brightness = brightness
+        self._engine = "07"
 
     def push_frame(self, img: Image.Image) -> None:
+        self._engine = "07"
         self._put(img)
 
     def set_brightness(self, brightness: int) -> None:
@@ -59,6 +63,13 @@ class MockPanel(Panel):
 
     def send_command(self, name: str, value=None) -> None:
         self.commands.append((name, value))
+        if name == "clock":
+            self._engine = "01"
+        elif name == "theme":
+            self._engine = "02"
+
+    def query_engine(self) -> str | None:
+        return self._engine
 
     def snapshot(self) -> Image.Image:
         """Latest frame (used by the web UI preview)."""

@@ -22,10 +22,11 @@ const ICONS = {
 const icon = (k) => `<svg class="ti" viewBox="0 0 24 24">${ICONS[k] || ICONS._}</svg>`;
 
 /* ---- live preview (poll, double-buffered) ---- */
+let builtinActive = false;  // panel plays its own content: no host frames to preview
 function startPreview() {
   const img = $("#screen");
   setInterval(() => {
-    if (document.body.classList.contains("no-preview")) return;  // built-in tab: no host frames
+    if (builtinActive) return;
     const p = new Image();
     p.onload = () => { img.src = p.src; };
     p.src = "/preview.png?t=" + Date.now();
@@ -53,7 +54,8 @@ async function refreshStatus() {
       $("#fps").title = "not rendering (panel off or nothing active)";
     }
     $("#power").classList.toggle("on", s.enabled);
-    $("#builtin").classList.toggle("on", !!s.builtin);
+    builtinActive = !!s.builtin;
+    document.body.classList.toggle("no-preview", builtinActive);  // built-in content: no host frames
     $("#brightness").value = s.brightness; $("#brightval").textContent = s.brightness;
     $$(".tile").forEach((t) => t.classList.toggle("active", t.dataset.key === s.current));
     $$(".cmd").forEach((b) => b.classList.toggle("on", s.builtin === `${b.dataset.name}:${b.dataset.value}`));
@@ -113,7 +115,6 @@ $("#drawer-apply").onclick = async () => {
 
 /* ---- controls ---- */
 $("#power").onclick = async () => { const s = await api("/api/status"); await api("/api/power", "POST", { on: !s.enabled }); refreshStatus(); };
-$("#builtin").onclick = () => switchTab("builtin");
 $("#brightness").oninput = (e) => { $("#brightval").textContent = e.target.value; };
 $("#brightness").onchange = (e) => api("/api/brightness", "POST", { value: +e.target.value });
 $("#resume").onclick = async () => { await api("/api/resume", "POST", {}); refreshStatus(); };
@@ -131,7 +132,10 @@ $("#cmd-clock").onclick = async () => {
 };
 $("#cmd-status").onclick = async () => {
   const r = await cmd("status", null);
-  $("#engine").textContent = r.engine ? `panel: ${r.engine}` : "no reply (unplugged?)";
+  const ENGINES = { "01": "clock", "02": "theme", "07": "custom image" };
+  $("#engine").textContent = r.engine
+    ? `panel: ${r.engine}${ENGINES[r.engine] ? " · " + ENGINES[r.engine] : ""}`
+    : "no reply";
 };
 $("#bi-resume").onclick = async () => { await api("/api/resume", "POST", {}); switchTab("applets"); refreshStatus(); };
 
@@ -139,7 +143,6 @@ $("#bi-resume").onclick = async () => { await api("/api/resume", "POST", {}); sw
 function switchTab(name) {
   $$(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
   $$(".panel-view").forEach((x) => x.classList.toggle("active", x.id === "tab-" + name));
-  document.body.classList.toggle("no-preview", name === "builtin");  // built-in tab: no host frames to preview
 }
 $$(".tab").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
 
