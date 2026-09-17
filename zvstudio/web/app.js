@@ -25,6 +25,7 @@ const icon = (k) => `<svg class="ti" viewBox="0 0 24 24">${ICONS[k] || ICONS._}<
 function startPreview() {
   const img = $("#screen");
   setInterval(() => {
+    if (document.body.classList.contains("no-preview")) return;  // built-in tab: no host frames
     const p = new Image();
     p.onload = () => { img.src = p.src; };
     p.src = "/preview.png?t=" + Date.now();
@@ -36,9 +37,12 @@ let APPLETS = [];
 async function refreshStatus() {
   try {
     const s = await api("/api/status");
-    $("#status").textContent = `${s.backend} · ${s.enabled ? "on" : "off"}`;
+    $("#status").textContent = s.builtin ? `${s.backend} · built-in` : `${s.backend} · ${s.enabled ? "on" : "off"}`;
     const f = s.fps;
-    if (!f) {
+    if (s.builtin) {
+      $("#fps").textContent = "built-in";
+      $("#fps").title = `panel plays its own content (${s.builtin}) — no host frames`;
+    } else if (!f) {
       $("#fps").textContent = "?";
       $("#fps").title = "daemon reports no fps data — restart zvstudio daemon";
     } else if (f.actual > 0) {
@@ -49,9 +53,10 @@ async function refreshStatus() {
       $("#fps").title = "not rendering (panel off or nothing active)";
     }
     $("#power").classList.toggle("on", s.enabled);
-    $("#flash").classList.toggle("on", s.flash);
+    $("#builtin").classList.toggle("on", !!s.builtin);
     $("#brightness").value = s.brightness; $("#brightval").textContent = s.brightness;
     $$(".tile").forEach((t) => t.classList.toggle("active", t.dataset.key === s.current));
+    $$(".cmd").forEach((b) => b.classList.toggle("on", s.builtin === `${b.dataset.name}:${b.dataset.value}`));
     renderPlaylist(s.playlist);
   } catch (e) { $("#status").textContent = "offline"; }
 }
@@ -108,18 +113,35 @@ $("#drawer-apply").onclick = async () => {
 
 /* ---- controls ---- */
 $("#power").onclick = async () => { const s = await api("/api/status"); await api("/api/power", "POST", { on: !s.enabled }); refreshStatus(); };
-$("#flash").onclick = async () => { const s = await api("/api/status"); await api("/api/flash", "POST", { on: !s.flash }); refreshStatus(); };
+$("#builtin").onclick = () => switchTab("builtin");
 $("#brightness").oninput = (e) => { $("#brightval").textContent = e.target.value; };
 $("#brightness").onchange = (e) => api("/api/brightness", "POST", { value: +e.target.value });
 $("#resume").onclick = async () => { await api("/api/resume", "POST", {}); refreshStatus(); };
 $("#pl-resume").onclick = $("#resume").onclick;
 
-/* ---- tabs ---- */
-$$(".tab").forEach((b) => b.onclick = () => {
-  $$(".tab").forEach((x) => x.classList.remove("active"));
-  $$(".panel-view").forEach((x) => x.classList.remove("active"));
-  b.classList.add("active"); $("#tab-" + b.dataset.tab).classList.add("active");
+/* ---- built-in content commands ---- */
+function cmd(name, value) { return api("/api/command", "POST", { name, value }); }
+$$(".cmd").forEach((b) => b.onclick = async () => {
+  await cmd(b.dataset.name, +b.dataset.value);
+  refreshStatus();
 });
+$("#cmd-clock").onclick = async () => {
+  await cmd("clocktime", { format: $("#clock12").checked ? 0 : 1 });
+  refreshStatus();
+};
+$("#cmd-status").onclick = async () => {
+  const r = await cmd("status", null);
+  $("#engine").textContent = r.engine ? `panel: ${r.engine}` : "no reply (unplugged?)";
+};
+$("#bi-resume").onclick = async () => { await api("/api/resume", "POST", {}); switchTab("applets"); refreshStatus(); };
+
+/* ---- tabs ---- */
+function switchTab(name) {
+  $$(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  $$(".panel-view").forEach((x) => x.classList.toggle("active", x.id === "tab-" + name));
+  document.body.classList.toggle("no-preview", name === "builtin");  // built-in tab: no host frames to preview
+}
+$$(".tab").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
 
 /* ---- playlist ---- */
 function renderPlaylist(pl) {

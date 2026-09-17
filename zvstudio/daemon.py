@@ -57,7 +57,7 @@ class Daemon:
             "size": list(self.panel.size),
             "enabled": self.comp.enabled,
             "brightness": self.comp.brightness,
-            "flash": self.comp.beat_flash,
+            "builtin": self.comp.builtin,
             "current": self.comp.current_key(),
             "fps": {
                 "cap": self.comp.fps,
@@ -84,8 +84,19 @@ class Daemon:
     def set_enabled(self, on: bool) -> None:
         self.comp.set_enabled(on)
 
-    def set_flash(self, on: bool) -> None:
-        self.comp.set_beat_flash(on)
+    def run_command(self, name: str, value=None) -> dict:
+        """Send a built-in content / panel-setting command (PROTOCOL.md v2).
+
+        ``clock``/``theme`` hand the panel to its own engine: the compositor
+        pauses rendering until custom content is resumed. ``status`` queries
+        what the panel is currently playing instead of sending anything.
+        """
+        if name == "status":
+            return {"engine": self.panel.query_engine()}
+        self.panel.send_command(name, value)
+        if name in ("clock", "theme"):
+            self.comp.set_builtin(f"{name}:{value}")
+        return {}
 
     def pin(self, key: str | None, config: dict | None = None) -> None:
         if key is None:

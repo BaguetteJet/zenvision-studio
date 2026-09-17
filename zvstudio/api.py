@@ -57,10 +57,10 @@ def create_app(daemon: Daemon) -> FastAPI:
         daemon.set_enabled(bool(payload.get("on", True)))
         return {"ok": True, "enabled": daemon.comp.enabled}
 
-    @app.post("/api/flash")
-    def flash(payload: dict) -> dict:
-        daemon.set_flash(bool(payload.get("on", True)))
-        return {"ok": True, "flash": daemon.comp.beat_flash}
+    @app.post("/api/command")
+    def command(payload: dict) -> dict:
+        result = daemon.run_command(payload.get("name"), payload.get("value"))
+        return {"ok": True, **result}
 
     @app.post("/api/pin")
     def pin(payload: dict) -> dict:

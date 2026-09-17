@@ -6,6 +6,8 @@ on bulk EP 0x07. See that project's PROTOCOL.md for the full description.
 """
 from __future__ import annotations
 
+import datetime
+
 import numpy as np
 from PIL import Image
 
@@ -13,8 +15,9 @@ from .base import Panel
 
 VID, PID = 0x0B05, 0x8835
 IFACE = 0
-EP_CMD = 0x03   # interrupt OUT — 512-byte commands
-EP_BULK = 0x07  # bulk OUT — 8704-byte framebuffer
+EP_CMD = 0x03      # interrupt OUT — 512-byte commands
+EP_BULK = 0x07     # bulk OUT — 8704-byte framebuffer
+EP_REPLY = 0x82    # interrupt IN — 512-byte engine-state replies
 FRAME_BYTES = 8704
 
 # Constant 8704-byte framebuffer geometry (page header at bp 0, marker at
@@ -26,6 +29,14 @@ _HEAD_AT = np.flatnonzero(_BP == 0)
 _HEAD = _PAGE[_HEAD_AT].astype(np.uint8)
 _ONE_AT = np.flatnonzero((_BP == 1) & (_PAGE == 16))
 _BODY_POS = np.flatnonzero(_BP >= 4)
+
+# Built-in content commands that hand the panel back to its autonomous engine;
+# anything else (battery/sweep/bootanim/speed/clocktime/brightness) is a panel
+# setting that does not take over the display.
+TAKEOVER_COMMANDS = ("clock", "theme")
+
+# First byte of the EP 0x82 reply buffer names the active content engine.
+_ENGINES = {ord("1"): "clock", ord("2"): "theme", ord("7"): "custom"}
 
 
 def encode(img: Image.Image, width: int = 256, height: int = 64) -> bytes:
@@ -52,6 +63,55 @@ def _cmd(*head: int) -> bytes:
     return bytes(b)
 
 
+def _clamp(value, lo: int, hi: int, label: str) -> int:
+    v = int(value)
+    if not (lo <= v <= hi):
+        raise ValueError(f"{label} out of range: {v} (expected {lo}-{hi})")
+    return v
+
+
+def build_command(name: str, value=None) -> bytes:
+    """Encode a PROTOCOL.md v2 command as a 512-byte EP 0x03 buffer."""
+    if name == "clock":
+        return _cmd(0x30, 0x05, 0x01, _clamp(value, 1, 2, "clock layout"))
+    if name == "theme":
+        return _cmd(0x30, 0x05, 0x02, 0x00, _clamp(value, 1, 4, "theme"))
+    if name == "battery":
+        # 30 05 04 00 00 00 <val>: 01 = off, 03 = on (on the clock layouts)
+        return _cmd(0x30, 0x05, 0x04, 0, 0, 0, 0x03 if value else 0x01)
+    if name == "sweep":
+        # 31 02 00 04 = screen sweep off, 31 02 02 03 = on
+        return _cmd(0x31, 0x02, 0x02 if value else 0x00, 0x03 if value else 0x04)
+    if name == "bootanim":
+        # 32 02 00 00 = boot animation off, 32 02 02 02 = on
+        return _cmd(0x32, 0x02, 0x02 if value else 0x00, 0x02 if value else 0x00)
+    if name == "speed":
+        return _cmd(0x33, 0x01, _clamp(value, 1, 3, "speed"))
+    if name == "brightness":
+        return _cmd(0x35, 0x01, _clamp(value, 0, 255, "brightness"))
+    if name == "clocktime":
+        # 40 09 <year le u16> <month> <day> <hour> <min> <sec> <format> <weekday>
+        now = datetime.datetime.now()
+        t = value or {}
+        hour = int(t.get("hour", now.hour))  # hour is always stored 24h
+        weekday = int(t.get("weekday", (now.weekday() + 1) % 7))  # 0=Sun..6=Sat
+        return _cmd(
+            0x40, 0x09,
+            int(t.get("year", now.year)) & 0xFF,
+            (int(t.get("year", now.year)) >> 8) & 0xFF,
+            _clamp(t.get("month", now.month), 1, 12, "month"),
+            _clamp(t.get("day", now.day), 1, 31, "day"),
+            _clamp(hour, 0, 23, "hour"),
+            _clamp(t.get("minute", now.minute), 0, 59, "minute"),
+            _clamp(t.get("second", now.second), 0, 59, "second"),
+            1 if t.get("format", 1) else 0,
+            weekday % 7,
+        )
+    if name == "status":
+        return _cmd(0xF1, 0x03)
+    raise ValueError(f"unknown command {name!r}")
+
+
 class ZenVisionPanel(Panel):
     name = "zenvision"
     width = 256
@@ -60,6 +120,7 @@ class ZenVisionPanel(Panel):
     def __init__(self) -> None:
         self.dev = None
         self._bright = 0xFF
+        self._builtin = False  # panel is playing its own content, not host frames
 
     def open(self) -> None:
         import usb.core
@@ -83,21 +144,47 @@ class ZenVisionPanel(Panel):
 
     def show_image(self, img: Image.Image, brightness: int = 255) -> None:
         fb = encode(img, self.width, self.height)
-        self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x01))     # begin static
-        self._b(fb)                                           # pixels
-        self._c(_cmd(0x31, 0x02, brightness & 0xFF, 0x03))    # apply + brightness
+        self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x01))     # content mode 1 = custom image
+        self._b(fb)                                           # pixels — shown immediately, no apply step
+        if brightness != self._bright:
+            self.set_brightness(brightness)
+        self._builtin = False
 
     def begin_stream(self, brightness: int = 255) -> None:
-        self._bright = brightness & 0xFF
-        self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x02))     # streaming mode
-        self._c(_cmd(0x31, 0x02, self._bright, 0x03))         # brightness
+        self._c(_cmd(0x30, 0x06, 0x05, 0, 0, 0, 0, 0x02))     # content mode 2 = custom stream
+        self.set_brightness(brightness)
+        self._builtin = False
 
     def push_frame(self, img: Image.Image) -> None:
+        if self._builtin:
+            self.begin_stream(self._bright)  # built-in content was playing — retake control
         self._b(encode(img, self.width, self.height))
 
     def set_brightness(self, brightness: int) -> None:
         self._bright = brightness & 0xFF
-        self._c(_cmd(0x31, 0x02, self._bright, 0x03))
+        self._c(_cmd(0x35, 0x01, self._bright))
+
+    def send_command(self, name: str, value=None) -> None:
+        """Send a built-in content / panel-setting command (PROTOCOL.md v2)."""
+        data = build_command(name, value)
+        self._c(data)
+        if name in TAKEOVER_COMMANDS:
+            self._builtin = True
+
+    def query_engine(self) -> str | None:
+        """Ask what content engine is playing (F1 03 reply on EP 0x82)."""
+        if self.dev is None:
+            return None
+        try:
+            # The reply slot is single-buffered and answers every command — drain
+            # the stale reply first, then ask, then read the fresh one.
+            self._c(_cmd(0x30, 0x05, 0x04, 0, 0, 0, 0x01))  # benign battery-off
+            self.dev.read(EP_REPLY, 512, timeout=500)
+            self._c(_cmd(0xF1, 0x03))
+            raw = bytes(self.dev.read(EP_REPLY, 512, timeout=500))
+        except Exception:
+            return None
+        return _ENGINES.get(raw[0] if raw else 0)
 
     def close(self) -> None:
         if self.dev is not None:

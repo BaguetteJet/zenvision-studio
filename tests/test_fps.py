@@ -104,19 +104,44 @@ def test_slow_panel_push_does_not_slow_the_schedule():
     assert abs(rate - 60.0) <= 10.0, f"expected ~60 fps despite 9.4ms pushes, got {rate:.1f}"
 
 
-def test_software_brightness_dims_frames():
-    # The panel firmware ignores the hardware brightness command on UX5401ZAS,
-    # so the compositor scales frames in software. 255 -> full, 128 -> half.
+def test_brightness_is_hardware_not_software():
+    # Brightness is now the panel's own command (35 01) — the compositor must
+    # forward it and must NOT dim frames in software.
     from PIL import Image
 
     from zvstudio.core.applets.frames import FramesApplet
 
     white = Image.new("L", SIZE, 255)
     ap = FramesApplet(size=SIZE, frames=[white])
-    comp = Compositor(MockPanel(), fps=20.0)
+    panel = MockPanel()
+    comp = Compositor(panel, fps=20.0)
     comp.set_playlist([Scene(ap, duration=999)])
     comp.set_brightness(128)
     comp.start()
     time.sleep(0.2)
     comp.stop()
-    assert comp.preview().getpixel((0, 0)) == 128, "brightness 128 should halve a 255 frame"
+    assert panel.brightness == 128, "brightness must be forwarded to the panel"
+    assert comp.preview().getpixel((0, 0)) == 255, "hardware brightness must not dim frames in software"
+
+
+def test_builtin_pauses_rendering_without_black():
+    from PIL import Image
+
+    from zvstudio.core.applets.frames import FramesApplet
+
+    white = Image.new("L", SIZE, 255)
+    ap = FramesApplet(size=SIZE, frames=[white])
+    panel = MockPanel()
+    comp = Compositor(panel, fps=20.0)
+    comp.set_playlist([Scene(ap, duration=999)])
+    comp.start()
+    time.sleep(0.1)
+    n = panel.frames_pushed
+    comp.set_builtin("clock:1")  # panel plays its own content
+    time.sleep(0.2)
+    assert panel.frames_pushed == n, "builtin mode must not keep pushing host frames"
+    comp.set_builtin(None)  # resume custom content
+    comp.set_playlist([Scene(ap, duration=999)])
+    time.sleep(0.2)
+    comp.stop()
+    assert panel.frames_pushed > n, "clearing builtin must resume rendering"

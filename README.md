@@ -49,8 +49,8 @@ same on KDE, GNOME, Sway, or headless.
 Plasma · tunnel · kaleidoscope · Lissajous · moiré · metaballs · ripple · fire ·
 katakana **Matrix** rain · starfield · wireframe cube · triangles — plus a VU-meter
 spectrum and an audio oscilloscope. All grayscale-graded with **MilkDrop-style
-trails**, a global **beat-flash**, an **Auto-VJ** that cycles them, and a **Layout-VJ**
-that switches multi-effect compositions **in tempo**.
+trails**, an **Auto-VJ** that cycles them, and a **Layout-VJ** that switches
+multi-effect compositions **in tempo**.
 
 ## The web UI
 
@@ -70,8 +70,12 @@ your phone over the LAN / Tailscale.
 - **Applets**: clock, system monitor (CPU/RAM/temp + sparkline), now-playing
   (MPRIS marquee + progress), text marquee, weather (Open-Meteo), media player
   (image / GIF / video).
-- **Audio-reactive visualisers** (see above) with trails, beat-flash, Auto-VJ and a
+- **Audio-reactive visualisers** (see above) with trails, Auto-VJ and a
   tempo-synced Layout-VJ.
+- **Built-in content**: hand the panel back to its own engine — clock layouts,
+  themes, battery icon, screen sweep, boot animation, speed, hardware brightness
+  and clock setting, all from the web UI (no live preview: frames are generated
+  on the panel).
 - **Web UI**: live panel mirror, per-applet settings, zone layout editor, in-browser
   **timeline** animation editor (keyframes/tween/easing/loop), drag-and-drop upload —
   works from a phone.
@@ -125,6 +129,9 @@ zvstudio status
 zvstudio show plasma
 zvstudio brightness 0x80
 zvstudio power off
+zvstudio command theme 2        # panel's built-in theme
+zvstudio command clock 1        # built-in clock layout
+zvstudio command status         # what's playing on the panel
 
 # Or skip the daemon for a one-shot:
 zvstudio play picture.png
@@ -140,8 +147,8 @@ systemctl --user enable --now zvstudio
 
 ### System-tray icon (KDE / Plasma)
 
-A small tray icon controls the running daemon — open the web UI, toggle power /
-beat-flash, pin an applet, set brightness:
+A small tray icon controls the running daemon — open the web UI, toggle power,
+play built-in content, pin an applet, set brightness:
 
 ```bash
 pip install -e ".[tray]"
@@ -179,7 +186,7 @@ the UI automatically. Full example in [`examples/`](examples/).
 ```
 device/      Panel backends — zenvision (USB) + mock (no hardware)
 applets/     Applet plugins (clock, sysmon, viz/fx/geo, …) — render(ctx) -> 256x64 'L'
-compositor   Render loop: playlist + preempt + beat-flash, flicker-free streaming
+compositor   Render loop: playlist + preempt + built-in pause, flicker-free streaming
 daemon/api   FastAPI: REST + live preview + zone layout + draw upload
 web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
 ```

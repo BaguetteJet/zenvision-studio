@@ -45,6 +45,27 @@ def test_pin_applet():
         d.stop()
 
 
+def test_command_endpoint():
+    client, d = make_client()
+    try:
+        r = client.post("/api/command", json={"name": "clock", "value": 1}).json()
+        assert r["ok"] is True
+        assert d.comp.builtin == "clock:1"
+        assert d.panel.commands[-1] == ("clock", 1)
+        # panel settings do not take over the display
+        client.post("/api/command", json={"name": "battery", "value": True})
+        assert d.comp.builtin == "clock:1"
+        assert client.get("/api/status").json()["builtin"] == "clock:1"
+        # status query returns what the panel says is playing (mock: None)
+        r = client.post("/api/command", json={"name": "status"}).json()
+        assert r["ok"] is True and "engine" in r
+        # resuming custom content clears builtin mode
+        client.post("/api/resume", json={})
+        assert d.comp.builtin is None
+    finally:
+        d.stop()
+
+
 def test_draw_accepts_frames_and_fps():
     # 1x1 black PNG as a data URL (the editor sends 256x64, but any decodable PNG works)
     px = (

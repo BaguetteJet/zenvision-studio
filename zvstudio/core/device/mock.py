@@ -24,6 +24,7 @@ class MockPanel(Panel):
         self._last = Image.new("L", self.size, 0)
         self.brightness = 255
         self.frames_pushed = 0
+        self.commands: list[tuple] = []  # (name, value) recorded by send_command
         self.save_dir = save_dir or os.environ.get("ZVSTUDIO_MOCK_DIR")
         if self.save_dir:
             os.makedirs(self.save_dir, exist_ok=True)
@@ -55,6 +56,9 @@ class MockPanel(Panel):
 
     def set_brightness(self, brightness: int) -> None:
         self.brightness = brightness
+
+    def send_command(self, name: str, value=None) -> None:
+        self.commands.append((name, value))
 
     def snapshot(self) -> Image.Image:
         """Latest frame (used by the web UI preview)."""

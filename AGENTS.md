@@ -48,7 +48,7 @@ cli.py            argparse entry point (zvstudio). Two modes:
 daemon.py         Daemon: owns the panel + Compositor, builds Scenes from config, exposes control verbs
 api.py            FastAPI app (create_app(daemon)): REST + /ws/preview WebSocket mirror + static web/
 config.py         JSON config under XDG (~/.config/zvstudio/config.json); playlist + preempt + uploads/
-core/compositor.py   Render loop in a daemon thread: playlist rotation, preempt, beat-flash, streaming
+core/compositor.py   Render loop in a daemon thread: playlist rotation, preempt, built-in pause, streaming
 core/registry.py     Applet discovery: the BUILTIN list + `zvstudio.applets` entry-point plugins
 core/frame.py        Pillow drawing helpers (canvas/text/scroll/sparkline/bar, font caches incl. CJK)
 core/audio.py        Singleton AudioLevel analyser: parec monitor → RMS/FFT bands/beat/waveform
@@ -72,8 +72,8 @@ a 2 fps clock costs a tenth of a 20 fps one; control calls wake the loop early. 
 
 `_reset_current()` calls `on_start()`/`on_stop()` hooks on transitions. The last rendered
 frame is cached in `_preview` so **any** backend (including a real USB panel you can't read
-back) can mirror to the browser. `beat_flash` brightens the whole frame on each audio beat.
-Mutating state (`set_playlist`, `pin`, `set_preempt`) is lock-guarded.
+back) can mirror to the browser. Mutating state (`set_playlist`, `pin`, `set_preempt`) is
+lock-guarded.
 
 The wait between frames is computed **after** `render()` + `push_frame()` complete (a real
 USB push costs ~9 ms), so panel latency never lengthens the cadence — a declared 60 fps
@@ -81,9 +81,13 @@ stays 60 fps on hardware. The achieved rate is measured (`Compositor.actual_fps`
 surfaced through `/api/status` (`fps: {cap, declared, actual}`) and the web UI status pill.
 `tests/test_fps.py` asserts every applet's measured rate matches `min(daemon_fps,
 applet_fps)` (0.5 fps floor), including a slow-push panel regression test.
-Brightness is applied **in software** (per-frame LUT, `_BRIGHT_LUTS`) — the panel firmware
-ignores the `31 02 BB 03` hardware command on UX5401ZAS (see PROTOCOL.md); the command is
-still sent as best-effort.
+Built-in content commands (`clock`/`theme`, sent via `POST /api/command`) hand the panel to
+its own engine: `set_builtin()` pauses the render loop **without** pushing black, and the
+UI hides the live preview (frames are generated on the panel, not the host). Pinning an
+applet, changing the playlist, or `resume` re-enters streaming mode
+(`_enter_custom()` → `panel.begin_stream`) and forces the next frame to actually push.
+Brightness is **hardware** (`35 01`, PROTOCOL.md v2) — `set_brightness()` forwards it to the
+panel and never touches pixel data.
 
 ### Applets (`core/applets/`)
 

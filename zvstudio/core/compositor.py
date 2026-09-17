@@ -16,12 +16,6 @@ from PIL import Image
 from .applets.base import Applet, Ctx
 from .device.base import Panel
 
-# Precomputed point() lookup tables for beat-flash (one per brightness step).
-_FLASH_LUTS = [bytes(min(255, v + add) for v in range(256)) for add in range(141)]
-# Software brightness: per-frame scaling LUTs. The panel firmware ignores the
-# 0x31 brightness command on UX5401ZAS, so dimming is done here (guaranteed).
-_BRIGHT_LUTS = [bytes(round(v * b / 255) for v in range(256)) for b in range(256)]
-
 
 @dataclass
 class Scene:
@@ -35,7 +29,7 @@ class Compositor:
         self.fps = fps
         self.brightness = 255
         self.enabled = True
-        self.beat_flash = False
+        self.builtin: str | None = None  # panel is playing built-in content (e.g. "clock:1")
 
         self._scenes: list[Scene] = []
         self._preempt: list[Applet] = []
@@ -79,10 +73,14 @@ class Compositor:
 
     # --- configuration ---------------------------------------------------
     def set_playlist(self, scenes: list[Scene]) -> None:
+        was_builtin = self.builtin is not None
         with self._lock:
             self._scenes = list(scenes)
             self._pinned = None
+            self.builtin = None
             self._reset_current(None)
+        if was_builtin:
+            self._enter_custom()  # regain the panel from its built-in engine
         self._wake.set()
 
     def set_preempt(self, applets: list[Applet]) -> None:
@@ -91,9 +89,13 @@ class Compositor:
         self._wake.set()
 
     def pin(self, applet: Applet | None) -> None:
+        was_builtin = self.builtin is not None
         with self._lock:
             self._pinned = applet
+            self.builtin = None
             self._reset_current(None)
+        if was_builtin:
+            self._enter_custom()
         self._wake.set()
 
     def set_brightness(self, value: int) -> None:
@@ -112,30 +114,25 @@ class Compositor:
             with self._lock:
                 self._render_times.clear()
 
-    def set_beat_flash(self, on: bool) -> None:
-        on = bool(on)
-        if on == self.beat_flash:
-            return  # idempotent: avoid double acquire()/release() on repeat toggles
-        from .audio import AudioLevel
-        if on:
-            AudioLevel.get().acquire()
-        else:
-            AudioLevel.get().release()
-        self.beat_flash = on
+    def set_builtin(self, name: str | None) -> None:
+        """Pause host rendering and let the panel play its built-in content.
 
-    def _flash(self, img):
-        """Brighten the whole frame on each audio beat (global beat-flash mode)."""
+        ``name`` is a short label like "clock:1". Passing None resumes custom
+        content (re-enters streaming mode on the panel).
+        """
+        name = name or None
+        if name is None and self.builtin is not None:
+            self._enter_custom()
+        self.builtin = name
+        self._wake.set()
+
+    def _enter_custom(self) -> None:
+        """Re-take the panel from its built-in engine and resume streaming."""
         try:
-            from .audio import AudioLevel
-            b = AudioLevel.get().beat
+            self.panel.begin_stream(self.brightness)
         except Exception:
-            return img
-        if b <= 0.02:
-            return img
-        add = int(140 * min(1.0, b))
-        if add <= 0:
-            return img
-        return img.point(_FLASH_LUTS[add])
+            pass
+        self._last_pushed = None  # force a real push even if bytes are unchanged
 
     # --- lifecycle -------------------------------------------------------
     def start(self) -> None:
@@ -151,8 +148,6 @@ class Compositor:
         if self._thread:
             self._thread.join(timeout=2.0)
             self._thread = None
-        if self.beat_flash:
-            self.set_beat_flash(False)
         if self._cur:
             try:
                 self._cur.on_stop()
@@ -218,6 +213,12 @@ class Compositor:
                 self._wake.wait(timeout=1.0)
                 self._wake.clear()
                 continue
+            if self.builtin:
+                # The panel plays its own content (clock/theme) — host renders
+                # nothing, and we must NOT push black (that would blank it).
+                self._wake.wait(timeout=1.0)
+                self._wake.clear()
+                continue
             with self._lock:
                 nxt = self._pick(t0, scene_idx)
                 if self._reset_current(nxt):
@@ -234,10 +235,6 @@ class Compositor:
                     img = cur.render(ctx)
                     if img.mode != "L":
                         img = img.convert("L")
-                    if self.beat_flash:
-                        img = self._flash(img)
-                    if self.brightness < 255:
-                        img = img.point(_BRIGHT_LUTS[self.brightness])
                     raw = img.tobytes()
                     if raw != self._last_pushed:
                         self.panel.push_frame(img)

@@ -112,6 +112,26 @@ def cmd_show(args) -> int:
     return 0
 
 
+def _parse_value(text: str):
+    low = text.lower()
+    if low == "now":
+        return None  # clocktime: let the daemon use the current time
+    if low in ("on", "true", "yes"):
+        return True
+    if low in ("off", "false", "no"):
+        return False
+    try:
+        return int(text, 0)
+    except ValueError:
+        return text
+
+
+def cmd_command(args) -> int:
+    value = _parse_value(args.value) if args.value is not None else None
+    print(_req(args.url, "/api/command", "POST", {"name": args.name, "value": value}))
+    return 0
+
+
 def cmd_tray(args) -> int:
     from .tray import run_tray
 
@@ -157,6 +177,15 @@ def build_parser() -> argparse.ArgumentParser:
     ss = sub.add_parser("show", help="pin a single applet")
     ss.add_argument("applet")
     ss.set_defaults(func=cmd_show)
+
+    sc = sub.add_parser(
+        "command",
+        help="send a built-in/panel command: clock|theme|battery|sweep|bootanim|speed|"
+        "brightness|clocktime|status",
+    )
+    sc.add_argument("name")
+    sc.add_argument("value", nargs="?", help="e.g. 1, 4, on/off, or 'now' for clocktime")
+    sc.set_defaults(func=cmd_command)
 
     sub.add_parser("tray", help="system-tray icon (KDE/SNI; needs the 'tray' extra)").set_defaults(func=cmd_tray)
 
