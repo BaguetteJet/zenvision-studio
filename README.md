@@ -2,10 +2,10 @@
 
 **Lid display controls on Linux for the ASUS Zenbook 14X Space Edition**
 
-![The ZenVision lid OLED running zenvision-studio](docs/starfield.gif)
-
 > [!IMPORTANT]   
-> This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, built-in commands, personalization, and Kubuntu support.
+> This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
+
+![The ZenVision lid OLED running zenvision-studio](docs/starfield.gif)
 
 ## Introduciton
 
@@ -14,6 +14,10 @@ The Zenbook 14X OLED Space Edition (UX5401ZAS) has a small 256×64 monochrome OL
 This project brings support to Linux through a lightweight daemon and web UI, featuring live applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
 
 **This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations.
+
+> [!WARNING]   
+> **OLED Burn-In Risk**   
+> Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
 
 ## Visualisers
 
