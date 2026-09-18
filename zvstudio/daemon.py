@@ -84,7 +84,7 @@ class Daemon:
     def set_enabled(self, on: bool) -> None:
         self.comp.set_enabled(on)
         if not on:
-            # Power off pairs with the burn-in sweep off (MyASUS recovery sequence).
+            # Power off pairs with the screen sweep off
             try:
                 self.panel.send_command("sweep", False)
             except Exception:

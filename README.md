@@ -1,46 +1,19 @@
+# ZenVision Studio · *BaguetteJet EDITION*
+
+**Lid display controls on Linux for the ASUS Zenbook 14X Space Edition**
+
+![The ZenVision lid OLED running zenvision-studio](docs/starfield.gif)
+
 > [!IMPORTANT]   
-> This project is a custom fork of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), and focuses on the following:   
->  
-> 1. **Performance** - improving efficiency to extend battery life.   
-> 2. **Personalization** - updating and adding applets to my own preference.   
-> 3. **Kubuntu** - adding Kubuntu/Debian support (upstream only packages for Arch/CachyOS)
+> This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, built-in commands, personalization, and Kubuntu support.
 
-> [!WARNING]   
-> **OLED Burn-In Risk**   
-> Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
+## Introduciton
 
-<div align="center">
+The Zenbook 14X OLED Space Edition (UX5401ZAS) has a small 256×64 monochrome OLED display built into the lid. ASUS only provides MyASUS Windows software for it.
 
-# <img src="zvstudio/web/logo.png" width="38" align="center"> zenvision-studio
+This project brings support to Linux through a lightweight daemon and web UI, featuring live applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
 
-**Turn the lid OLED of an ASUS Zenbook into a live dashboard on Linux.**
-
-🟢 *The first open-source Linux support for the ASUS **ZenVision** lid OLED.*
-The protocol was reverse-engineered from scratch (Ghidra on MyASUS) and lives in the
-companion driver **[zenvision-linux](https://github.com/tarpediem/zenvision-linux)**.
-
-![The ZenVision lid OLED running zenvision-studio](docs/lid.gif)
-
-*Audio-reactive visualisers on the actual lid OLED of an ASUS Zenbook 14X OLED Space Edition (UX5401ZAS).*
-
-[![CI](https://github.com/baguettejet/zenvision-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/baguettejet/zenvision-studio/actions)
-&nbsp;·&nbsp; MIT &nbsp;·&nbsp; cross-desktop &nbsp;·&nbsp; control it from your phone
-
-</div>
-
----
-
-## What is this?
-
-The Zenbook 14X OLED Space Edition has a tiny **256×64 monochrome OLED in the lid**
-("ZenVision"). ASUS only ships a Windows app for it. This project drives it from
-Linux with a small **daemon + web UI**: live **applets** (clock, system stats,
-now-playing…), a gallery of **audio-reactive demoscene visualisers**, an
-**in-browser timeline animation editor** (keyframes + tweening), and a
-**drag-and-drop zone layout** so you can put several effects on screen at once.
-
-No `/dev/fb`, no GUI toolkit lock-in — just push grayscale frames over USB. Works the
-same on KDE, GNOME, Sway, or headless.
+**This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations.
 
 ## Visualisers
 
@@ -86,24 +59,17 @@ your phone over the LAN / Tailscale.
   (and CI) runs with no device attached.
 - **Pluggable**: third-party applets register via the `zvstudio.applets` entry point.
 
-## Install
+## Installation
 
-### Arch Linux (AUR)
+### Kubuntu
 
-```bash
-yay -S zenvision-studio          # latest tagged release
-# …or the rolling build that tracks main:
-yay -S zenvision-studio-git
-```
-
-The package installs the udev rule, a systemd **user** service and the tray
-launcher. The reverse-engineered driver is on the AUR too, as `zenvision-linux-git`.
+(***Install script coming soon***)
 
 ### From source
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
-pip install -e ".[audio,video]"     # audio = numpy (spectrum/visualisers); video = imageio
+pip install -e ".[audio,video]"
 ```
 
 Non-root USB access:
