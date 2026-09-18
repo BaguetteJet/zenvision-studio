@@ -65,9 +65,27 @@ your phone over the LAN / Tailscale.
 
 ## Installation
 
-### Kubuntu
+### Kubuntu / Ubuntu / Debian (recommended)
 
-(***Install script coming soon***)
+Download the latest `.deb` from the [Releases](https://github.com/baguettejet/zenvision-studio/releases) page and install it:
+
+```bash
+sudo apt install ./zenvision-studio_*.deb
+```
+
+The package is self-contained — Python and all dependencies are bundled under
+`/opt/zenvision-studio`, so only a system `python3` (>= 3.10) is required. It
+installs the daemon, web UI, systemd user unit, udev rule (non-root USB access),
+menu entry and tray icon (on KDE the tray auto-starts at your next login.
+
+```bash
+zvstudio daemon            # open http://127.0.0.1:8787
+systemctl --user enable --now zvstudio    # run at login
+```
+
+Remove it any time with `sudo apt remove zenvision-studio` (daemon is stopped
+and disabled, your `~/.config/zvstudio/` data is kept). How the package is built
+and released: [docs/PACKAGING.md](docs/PACKAGING.md).
 
 ### From source
 
@@ -115,19 +133,33 @@ cp systemd/zvstudio.service ~/.config/systemd/user/
 systemctl --user enable --now zvstudio
 ```
 
+(When installed from the `.deb`, the unit is already in place — just
+`systemctl --user enable --now zvstudio`.)
+
 ### System-tray icon (KDE / Plasma)
 
 A small tray icon controls the running daemon — open the web UI, toggle power,
 play built-in content, pin an applet, set brightness:
 
 ```bash
-pip install -e ".[tray]"
-# KDE uses StatusNotifierItem (SNI), so the AppIndicator backend needs these:
-sudo pacman -S --needed python-gobject libayatana-appindicator   # Arch/CachyOS
-# …and the venv must see system 'gi' — create it with --system-site-packages
-# (or install zvstudio into a Python that already has python-gobject).
-
 zvstudio tray                                  # needs `zvstudio daemon` running
+```
+
+From the `.deb`, `pystray` is already bundled and KDE auto-starts the tray at
+login (`/etc/xdg/autostart/`). It just needs two system packages, which Kubuntu
+ships by default:
+
+```bash
+sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1
+```
+
+From source, `pystray` comes from the `tray` extra — and the venv must see the
+system `gi` module, so create it with `--system-site-packages`:
+
+```bash
+pip install -e ".[tray]"
+python -m venv --system-site-packages .venv   # if recreating the venv
+# Arch/CachyOS: sudo pacman -S --needed python-gobject libayatana-appindicator
 cp systemd/zvstudio-tray.desktop ~/.config/autostart/   # auto-start on login
 ```
 
@@ -166,15 +198,15 @@ web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
 - ✅ Update and optimize starfield applet (my fav)
 - ✅ Optimize display process to use less resources
 - ✅ Optimize remaining applets
+- ✅ Package for Kubuntu/Ubuntu/Debian (`.deb` on GitHub Releases — see [docs/PACKAGING.md](docs/PACKAGING.md))
 - Correct date/time on lid close animation
 - Fix default animation on suspend
-- Package for Kubuntu/Ubuntu/Debian
 
 ## Credits
 
-Originally created by [tarpediem](https://github.com/tarpediem), who built the project using the reverse-engineered protocol documented in [zenvision-linux](https://github.com/tarpediem/zenvision-linux). This project is unofficial and is not affiliated with or endorsed by ASUS. 
+Originally created by [tarpediem](https://github.com/tarpediem), who created the project based on the reverse-engineered protocol documented in [zenvision-linux](https://github.com/tarpediem/zenvision-linux). This project is unofficial and is not affiliated with or endorsed by ASUS. 
 
-This fork is maintained and updated by [BaguetteJet](https://github.com/BaguetteJet), with AI assistance.
+This fork is maintained and updated by [BaguetteJet](https://github.com/BaguetteJet).
 
 ## License
 

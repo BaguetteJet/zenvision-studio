@@ -53,7 +53,9 @@ def run_tray(url: str = DEFAULT_URL) -> int:
         print(
             "tray needs the AppIndicator backend. Install:\n"
             "  pip install 'zenvision-studio[tray]'\n"
-            "  # plus the system libs (Arch/CachyOS):\n"
+            "  # plus the system libs (Kubuntu/Ubuntu/Debian):\n"
+            "  sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1\n"
+            "  # (Arch/CachyOS):\n"
             "  sudo pacman -S --needed python-gobject libayatana-appindicator\n"
             "The venv must be able to import 'gi' — create it with "
             "`python -m venv --system-site-packages .venv` or install into a\n"
