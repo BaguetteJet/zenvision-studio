@@ -13,7 +13,7 @@ The Zenbook 14X OLED Space Edition (UX5401ZAS) has a small 256×64 monochrome OL
 
 This project brings support to Linux through a lightweight daemon and web UI, featuring live applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
 
-**This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations.
+**This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations. Packaging for Kubuntu/Ubuntu/Debian instead of Arch/CachyOS.
 
 > [!WARNING]   
 > **OLED Burn-In Risk**   
@@ -73,24 +73,43 @@ Download the latest `.deb` from the [Releases](https://github.com/baguettejet/ze
 sudo apt install ./zenvision-studio_*.deb
 ```
 
-The package is self-contained — Python and all dependencies are bundled under
-`/opt/zenvision-studio`, so only a system `python3` (>= 3.10) is required. It
-installs the daemon, web UI, systemd user unit, udev rule (non-root USB access),
-menu entry and tray icon (on KDE the tray auto-starts at your next login.
+**Requires** Python 3.10 or newer
+
+The package is self-contained and bundles all required dependencies. It installs:
+
+* ZenVision Studio daemon
+* Web UI
+* systemd user service
+* udev rule for non-root USB access
+* Desktop menu entry
+* KDE tray icon
+
+**Enable** and start the daemon:
 
 ```bash
-zvstudio daemon            # open http://127.0.0.1:8787
-systemctl --user enable --now zvstudio    # run at login
+systemctl --user enable --now zvstudio
 ```
 
-Remove it any time with `sudo apt remove zenvision-studio` (daemon is stopped
-and disabled, your `~/.config/zvstudio/` data is kept). How the package is built
-and released: [docs/PACKAGING.md](docs/PACKAGING.md).
+The **KDE tray** auto-starts at your next login.
+
+Remove it any time with `sudo apt remove zenvision-studio` (daemon is stopped and disabled, your `~/.config/zvstudio/` data is kept). How the package is built and released: [docs/PACKAGING.md](docs/PACKAGING.md).
 
 ### From source
 
+Alternatively, you can install ZenVision Studio directly from source. This a good option for development and other Linux distributions. There is no performance difference compared to the packaged version.
+
+Run install script:
 ```bash
-python -m venv .venv && . .venv/bin/activate
+./install.sh
+```
+The script performs all required setup steps automatically.
+
+#### Manual setup
+
+Create python environment and install the package:
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -e ".[audio,video]"
 ```
 
@@ -198,9 +217,10 @@ web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
 - ✅ Update and optimize starfield applet (my fav)
 - ✅ Optimize display process to use less resources
 - ✅ Optimize remaining applets
-- ✅ Package for Kubuntu/Ubuntu/Debian (`.deb` on GitHub Releases — see [docs/PACKAGING.md](docs/PACKAGING.md))
-- Correct date/time on lid close animation
-- Fix default animation on suspend
+- ✅ Correct date/time on lid close animation
+- ✅ Implement default built-in themes
+- ✅ Package for Kubuntu/Ubuntu/Debian (`.deb` GitHub Releases - see [docs/PACKAGING.md](docs/PACKAGING.md))
+- Fix default animation playing briefly on suspend
 
 ## Credits
 
