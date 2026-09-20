@@ -35,6 +35,7 @@ This project brings support to Linux through a daemon and web UI, featuring appl
 - ✅ Fix frame generation and add live FPS display
 - ✅ Fix brightness adjustment
 - ✅ Fix configuration save
+- ✅ Fix idle daemon CPU usage
 - ✅ Update web UI and tray menu
 - ✅ Implement built-in content, reverse-enineered through my [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research)
 - ✅ Package for Kubuntu/Ubuntu/Debian with `.deb` GitHub Releases, see [PACKAGING.md](docs/PACKAGING.md)
@@ -45,7 +46,28 @@ This project brings support to Linux through a daemon and web UI, featuring appl
 
 ## Performance
 
-*table here*
+Median render cost per frame compared to the forked version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio/tree/f7a48d0cef338c36d5d2d5476a6ce9539149f619), measured on the mock backend at each applet's declared fps.
+
+Observed CPU usage measured with `htop` at idle dropped from 3% to 0.7%.
+
+### Major Improvements
+
+- **Matrix rain applet (≈64× faster)** — glyphs rasterized once per fade level and blitted.
+- **Frame encoder (≈44× faster)** — 16384-pixel 4bpp packing loop vectorized NumPy.
+- **Text marquee (≈21× faster)** — text strip rendered once and cache.
+- **Audio is opt-in** — analysis starts/stops on demand and is off by default.
+- **Idle panel costs nothing** — loop pushes black once and sleeps instead of re-pushing constantly.
+- **Compositor** — loop renders frame rate per applet instead of global rate.
+
+### Applet render costs (ms/frame)
+
+| applet | original | optimized | speedup |
+|---|---|---|---|
+| matrix | 11.13 | 0.17 | 64× |
+| text | 0.13 | 0.01 | 21× |
+| scope | 0.03 | 0.01 | 4× |
+| clock | 0.36 | 0.13 | 2.8× |
+| player | 0.10 | 0.04 | 2.3× |
 
 ## Visualisers
 
