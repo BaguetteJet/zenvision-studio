@@ -102,7 +102,7 @@ Run install script:
 ```bash
 ./install.sh
 ```
-The script performs all required setup steps automatically.
+The script performs all required setup steps automatically. To undo script use `./install.sh --uninstall`.
 
 #### Manual setup
 
