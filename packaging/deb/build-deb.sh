@@ -22,7 +22,7 @@ command -v dpkg-deb >/dev/null || { echo "error: dpkg-deb not found" >&2; exit 1
 
 VERSION=$(python3 -c "import re; print(re.search(r'^version = \"([^\"]+)\"', open('pyproject.toml').read(), re.M).group(1))")
 ARCH=$(dpkg --print-architecture)
-MAINTAINER="${MAINTAINER:-Olivier Magnier <baguette.jet@gmail.com>}"
+MAINTAINER="${MAINTAINER:-Igor Kochanski <baguette.jet@gmail.com>}"
 EXTRAS="${EXTRAS:-audio,tray}"
 DEB="dist/zenvision-studio_${VERSION}_${ARCH}.deb"
 

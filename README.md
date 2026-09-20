@@ -1,17 +1,16 @@
+>  **Note** - This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
+
 # ZenVision Studio · *BaguetteJet EDITION*
 
-**Lid display controls on Linux for the ASUS Zenbook 14X Space Edition**
+ZenVision lid display controls on Linux for the ASUS Zenbook 14X Space Edition laptop.
 
-> [!IMPORTANT]   
-> This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
+![The ZenVision lid OLED running zenvision-studio](docs/img/starfield.gif)
 
-![The ZenVision lid OLED running zenvision-studio](docs/starfield.gif)
-
-## Introduciton
+## Introduction
 
 The Zenbook 14X OLED Space Edition (UX5401ZAS) has a small 256×64 monochrome OLED display built into the lid. ASUS only provides MyASUS Windows software for it.
 
-This project brings support to Linux through a lightweight daemon and web UI, featuring live applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
+This project brings support to Linux through a daemon and web UI, featuring applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
 
 **This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations. Packaging for Kubuntu/Ubuntu/Debian instead of Arch/CachyOS.
 
@@ -19,9 +18,38 @@ This project brings support to Linux through a lightweight daemon and web UI, fe
 > **OLED Burn-In Risk**   
 > Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
 
+
+## Fork Purpose
+
+### Completed
+
+- ✅ Optimize display process (encode/compositor)
+- ✅ Optimize individual applets (render)
+- ✅ Overhaul the starfield applet (my favourite)
+- ✅ Fix nowplaying applet text and add album cover
+- ✅ Benchmark applet rendering performance
+- ✅ Start/stop audio reactive processing when required
+- ✅ Make audio reactive content optional
+- ✅ Correct date/time on lid close animation
+- ✅ Remove beat-flash mode
+- ✅ Fix frame generation and add live FPS display
+- ✅ Fix brightness adjustment
+- ✅ Fix configuration save
+- ✅ Update web UI and tray menu
+- ✅ Implement built-in content, reverse-enineered through my [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research)
+- ✅ Package for Kubuntu/Ubuntu/Debian with `.deb` GitHub Releases, see [PACKAGING.md](docs/PACKAGING.md)
+
+### Remaining
+
+- Fix default animation playing briefly on suspend
+
+## Performance
+
+*table here*
+
 ## Visualisers
 
-![effects gallery](docs/gallery.png)
+![effects gallery](docs/img/gallery.png)
 
 Plasma · tunnel · kaleidoscope · Lissajous · moiré · metaballs · ripple · fire ·
 katakana **Matrix** rain · starfield · wireframe cube · triangles — plus a VU-meter
@@ -33,7 +61,7 @@ multi-effect compositions **in tempo**.
 
 | Dashboard | Zone layout editor | Timeline animation editor |
 |---|---|---|
-| ![dashboard](docs/ui-dashboard.png) | ![layout](docs/ui-layout.png) | ![timeline](docs/ui-timeline.png) |
+| ![dashboard](docs/img/ui-dashboard.png) | ![layout](docs/img/ui-layout.png) | ![timeline](docs/img/ui-timeline.png) |
 
 Live mirror of the panel, brightness/power, per-applet settings, a drag-and-drop
 **zone editor** (split the panel into regions), and a stylus-friendly **timeline editor**:
@@ -73,17 +101,6 @@ Download the latest `.deb` from the [Releases](https://github.com/baguettejet/ze
 sudo apt install ./zenvision-studio_*.deb
 ```
 
-**Requires** Python 3.10 or newer
-
-The package is self-contained and bundles all required dependencies. It installs:
-
-* ZenVision Studio daemon
-* Web UI
-* systemd user service
-* udev rule for non-root USB access
-* Desktop menu entry
-* KDE tray icon
-
 **Enable** and start the daemon:
 
 ```bash
@@ -92,35 +109,10 @@ systemctl --user enable --now zvstudio
 
 The **KDE tray** auto-starts at your next login.
 
-Remove it any time with `sudo apt remove zenvision-studio` (daemon is stopped and disabled, your `~/.config/zvstudio/` data is kept). How the package is built and released: [docs/PACKAGING.md](docs/PACKAGING.md).
+> Requires Python 3.10 or newer. The tray requires two system packages, which ship with **Kubuntu** by default. For Ubuntu and Debian:    
+> `sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1`
 
-### From source
-
-Alternatively, you can install ZenVision Studio directly from source. This a good option for development and other Linux distributions. There is no performance difference compared to the packaged version.
-
-Run install script:
-```bash
-./install.sh
-```
-The script performs all required setup steps automatically. To undo script use `./install.sh --uninstall`.
-
-#### Manual setup
-
-Create python environment and install the package:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[audio,video]"
-```
-
-Non-root USB access:
-
-```bash
-sudo cp udev/70-zenvision.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules && sudo udevadm trigger
-```
-
-The VU-meter / visualisers read system audio levels via `parec` (PipeWire/PulseAudio).
+See [INSTALL.md](docs/INSTALL.md) for more details on development setup and **other distributions**.
 
 ## Run
 
@@ -211,16 +203,6 @@ compositor   Render loop: playlist + preempt + built-in pause, flicker-free stre
 daemon/api   FastAPI: REST + live preview + zone layout + draw upload
 web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
 ```
-
-## Roadmap
-
-- ✅ Update and optimize starfield applet (my fav)
-- ✅ Optimize display process to use less resources
-- ✅ Optimize remaining applets
-- ✅ Correct date/time on lid close animation
-- ✅ Implement default built-in themes
-- ✅ Package for Kubuntu/Ubuntu/Debian (`.deb` GitHub Releases - see [docs/PACKAGING.md](docs/PACKAGING.md))
-- Fix default animation playing briefly on suspend
 
 ## Credits
 
