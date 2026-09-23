@@ -1,4 +1,4 @@
->  **Note** - This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
+> **Fork Notice** - This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
 
 # ZenVision Studio · *BaguetteJet EDITION*
 
@@ -17,7 +17,6 @@ This project brings support to Linux through a daemon and web UI, featuring appl
 > [!WARNING]   
 > **OLED Burn-In Risk**   
 > Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
-
 
 ## Fork Purpose
 
@@ -48,8 +47,6 @@ This project brings support to Linux through a daemon and web UI, featuring appl
 
 Median render cost per frame compared to the forked version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio/tree/f7a48d0cef338c36d5d2d5476a6ce9539149f619), measured on the mock backend at each applet's declared fps.
 
-Observed CPU usage measured with `htop` at idle dropped from 3% to 0.7%.
-
 ### Major Improvements
 
 - **Matrix rain applet (≈64× faster)** — glyphs rasterized once per fade level and blitted.
@@ -59,59 +56,25 @@ Observed CPU usage measured with `htop` at idle dropped from 3% to 0.7%.
 - **Idle panel costs nothing** — loop pushes black once and sleeps instead of re-pushing constantly.
 - **Compositor** — loop renders frame rate per applet instead of global rate.
 
-### Applet render costs (ms/frame)
 
-| applet | original | optimized | speedup |
-|---|---|---|---|
-| matrix | 11.13 | 0.17 | 64× |
-| text | 0.13 | 0.01 | 21× |
-| scope | 0.03 | 0.01 | 4× |
-| clock | 0.36 | 0.13 | 2.8× |
-| player | 0.10 | 0.04 | 2.3× |
+## Web UI
+Includes a live mirror of the panel custom content. Controls display, brightness, power, per-applet settings, layouts, animations, playlists. Include built-in themes, clock configuration and settings. Displays current fps.
 
-## Visualisers
+|Applets | Layouts | Built-in and settings |
+|---|---|---|
+| ![dashboard](docs/img/ui-applets.png) |![layout](docs/img/ui-layout.png) | ![builtin](docs/img/ui-builtin.png) |
+
 
 ![effects gallery](docs/img/gallery.png)
 
-Plasma · tunnel · kaleidoscope · Lissajous · moiré · metaballs · ripple · fire ·
-katakana **Matrix** rain · starfield · wireframe cube · triangles — plus a VU-meter
-spectrum and an audio oscilloscope. All grayscale-graded with **MilkDrop-style
-trails**, an **Auto-VJ** that cycles them, and a **Layout-VJ** that switches
-multi-effect compositions **in tempo**.
-
-## The web UI
-
-| Dashboard | Zone layout editor | Timeline animation editor |
-|---|---|---|
-| ![dashboard](docs/img/ui-dashboard.png) | ![layout](docs/img/ui-layout.png) | ![timeline](docs/img/ui-timeline.png) |
-
-Live mirror of the panel, brightness/power, per-applet settings, a drag-and-drop
-**zone editor** (split the panel into regions), and a stylus-friendly **timeline editor**:
-draw keyframes, then **tween** between them with per-keyframe **easing** (linear /
-ease-in / out / in-out), **hold** durations and a seamless **loop tween** — the editor
-interpolates the in-between frames and streams the result to the panel. Reachable from
-your phone over the LAN / Tailscale.
-
 ## Features
 
-- **Applets**: clock, system monitor (CPU/RAM/temp + sparkline), now-playing
-  (MPRIS marquee + progress), text marquee, weather (Open-Meteo), media player
-  (image / GIF / video).
-- **Audio-reactive visualisers** (see above) with trails, Auto-VJ and a
-  tempo-synced Layout-VJ.
-- **Built-in content**: hand the panel back to its own engine — clock layouts,
-  themes, battery icon, screen sweep, boot animation, speed, hardware brightness
-  and clock setting, all from the web UI (no live preview: frames are generated
-  on the panel).
-- **Web UI**: live panel mirror, per-applet settings, zone layout editor, in-browser
-  **timeline** animation editor (keyframes/tween/easing/loop), drag-and-drop upload —
-  works from a phone.
-- **Compositor**: rotates a playlist of scenes; an applet can *preempt* (now-playing
-  pops in on a track change). Flicker-free streaming.
-- **Cross-desktop**: a headless daemon + a browser page — nothing depends on KDE/GNOME.
-- **Hardware-free dev**: a `mock` backend renders to a preview/PNG, so the whole stack
-  (and CI) runs with no device attached.
-- **Pluggable**: third-party applets register via the `zvstudio.applets` entry point.
+- **Applets**: clock, system monitor, now-playing, text, weather, media player, visualizers and more.
+- **Built-in themes**: control panel built-in content including clock layouts, themes, animation speed, etc.
+- **Live FPS**: Web UI shows the actual frame rate for the active applet.
+- **Audio-reactive visualisers**: audio analysis is opt-in and starts/stops on demand.
+- **Web UI**: live mirror, per-applet settings, playlists, zone layouts, and drag-and-drop upload.
+- **Easy dev**: `mock` backend renders a preview, so runs even with no device.
 
 ## Installation
 
@@ -134,97 +97,49 @@ The **KDE tray** auto-starts at your next login.
 > Requires Python 3.10 or newer. The tray requires two system packages, which ship with **Kubuntu** by default. For Ubuntu and Debian:    
 > `sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1`
 
-See [INSTALL.md](docs/INSTALL.md) for more details on development setup and **other distributions**.
+See [INSTALL.md](docs/INSTALL.md) for the source install script, manual setup, and **other distributions**.
 
 ## Run
 
 ```bash
-# Start the daemon + web UI (real panel auto-detected, else mock)
-zvstudio daemon                      # open http://127.0.0.1:8787
-
-# No hardware? Force the mock backend and watch the live preview in the browser:
-ZVSTUDIO_BACKEND=mock zvstudio daemon
-
-# CLI
-zvstudio status
-zvstudio show plasma
-zvstudio brightness 0x80
-zvstudio power off
-zvstudio command theme 2        # panel's built-in theme
-zvstudio command clock 1        # built-in clock layout
-zvstudio command status         # what's playing on the panel
-
-# Or skip the daemon for a one-shot:
-zvstudio play picture.png
-zvstudio anim frames/ --fps 20
+zvstudio daemon   # panel daemon + web UI on http://127.0.0.1:8787
+ZVSTUDIO_BACKEND=mock zvstudio daemon   # no hardware? mock backend + live preview
 ```
 
-Run at login (systemd user service, runs as your user so now-playing/MPRIS works):
-
-```bash
-cp systemd/zvstudio.service ~/.config/systemd/user/
-systemctl --user enable --now zvstudio
-```
-
-(When installed from the `.deb`, the unit is already in place — just
-`systemctl --user enable --now zvstudio`.)
-
-### System-tray icon (KDE / Plasma)
-
-A small tray icon controls the running daemon — open the web UI, toggle power,
-play built-in content, pin an applet, set brightness:
-
-```bash
-zvstudio tray                                  # needs `zvstudio daemon` running
-```
-
-From the `.deb`, `pystray` is already bundled and KDE auto-starts the tray at
-login (`/etc/xdg/autostart/`). It just needs two system packages, which Kubuntu
-ships by default:
-
-```bash
-sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1
-```
-
-From source, `pystray` comes from the `tray` extra — and the venv must see the
-system `gi` module, so create it with `--system-site-packages`:
-
-```bash
-pip install -e ".[tray]"
-python -m venv --system-site-packages .venv   # if recreating the venv
-# Arch/CachyOS: sudo pacman -S --needed python-gobject libayatana-appindicator
-cp systemd/zvstudio-tray.desktop ~/.config/autostart/   # auto-start on login
-```
-
-## Write an applet
-
-An applet returns one 256×64 grayscale frame per tick:
-
-```python
-from zvstudio.core.applets.base import Applet, AppletMeta, Ctx
-from zvstudio.core import frame as F
-
-class HelloApplet(Applet):
-    meta = AppletMeta(key="hello", name="Hello", description="says hi")
-
-    def render(self, ctx: Ctx):
-        img = F.canvas(*self.size)
-        F.text(img, (self.size[0] // 2, 32), "hello :)", size=22, anchor="mm")
-        return img
-```
-
-Register it via a `[project.entry-points."zvstudio.applets"]` entry and it shows up in
-the UI automatically. Full example in [`examples/`](examples/).
+See [CLI.md](docs/CLI.md) for details on commands.
 
 ## Architecture
 
+Everything above the panel backend deals only in PIL grayscale images. Applets draw them, the compositor schedules them, the API mirrors them. Only `core/device/` knows the USB format.
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients"]
+        cli["CLI + Tray"]
+        browser["Web UI"]
+    end
+
+    subgraph daemon["zvstudio daemon process"]
+        api["FastAPI"]
+        comp["Compositor<br>manage frames"]
+        applets["Applets<br/>render frames"]
+        audio["Audio Level<br/>parec monitor"]
+        backend["Backend<br> real / mock"]
+    end
+
+    panel["Display Panel"]
+
+    cli -->|HTTP| api
+    browser -->|"WebSocket"| api
+    api -->|controls| comp
+    audio -->|"audio info"| applets
+    applets -->|frame| comp
+    comp -->|push frame| backend
+    backend -->|USB| panel
+    comp -.->|preview| api
 ```
-device/      Panel backends — zenvision (USB) + mock (no hardware)
-applets/     Applet plugins (clock, sysmon, viz/fx/geo, …) — render(ctx) -> 256x64 'L'
-compositor   Render loop: playlist + preempt + built-in pause, flicker-free streaming
-daemon/api   FastAPI: REST + live preview + zone layout + draw upload
-web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
-```
+
+`play`/`anim` are the exception as they skip the daemon and drive the panel backend directly.
 
 ## Credits
 

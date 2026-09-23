@@ -108,7 +108,7 @@ apt handles it like any other local package:
 
 ```bash
 sudo apt remove zenvision-studio        # stop + disable daemon, remove files
-sudo apt purge zenvision-studio         # same + remove config? no — see below
+sudo apt purge zenvision-studio         # same for this package — your data is untouched
 ```
 
 `prerm`/`postrm` stop and disable the user daemon (per logged-in user) and reload

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## What this is
 
@@ -111,8 +111,9 @@ into sub-boxes; `FramesApplet` (`frames.py`) plays an in-memory frame sequence f
 web timeline editor.
 
 **To add a built-in applet:** create the class, then add it to `BUILTIN` in
-`core/registry.py`. Third-party applets register via a `[project.entry-points."zvstudio.applets"]`
-entry (see `examples/sample_applet.py`) and are auto-discovered — no core edit needed.
+`core/registry.py` (full guide: `docs/APPLETS.md`). Third-party applets register via a
+`[project.entry-points."zvstudio.applets"]` entry (see `examples/sample_applet.py`) and are
+auto-discovered — no core edit needed.
 
 ### Panel backends (`core/device/`)
 

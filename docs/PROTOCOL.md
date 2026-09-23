@@ -50,7 +50,7 @@ overwrites the previous one, so the driver drains before querying.
 | `07` | custom image content |
 
 The explicit query `F1 03` also triggers a reply, so you can ask *what is
-playing right now* at any time (`zenvision.py status`).
+playing right now* at any time (`zvstudio command status`).
 
 ## Command channel (EP 0x03)
 
@@ -75,7 +75,7 @@ digit acting as an opcode group.
 > The `30 05 01/02…` commands select **built-in** content and hand the panel back
 > to its autonomous loop — anything you pushed before is replaced. To show your
 > own pixels again, set the content mode and send a framebuffer
-> (`zenvision.py image`).
+> (e.g. `zvstudio play picture.png`).
 
 ### Reinterpretations from the captures
 
@@ -133,7 +133,9 @@ carry payload (508 bytes/packet). The payload, concatenated across packets, is t
 
 3. **Wrap in the 17×512 packet framing** described above to get the 8704 bytes.
 
-See `encode()` in [`zenvision.py`](zenvision.py) for a reference implementation.
+See `encode()` in [`zvstudio/core/device/zenvision.py`](../zvstudio/core/device/zenvision.py)
+for a reference implementation (the standalone sibling driver is
+[zenvision-linux](https://github.com/tarpediem/zenvision-linux)).
 
 ## Showing a static image
 
@@ -148,7 +150,7 @@ transfer lands. Re-sending the mode + frame pair causes a brief redraw flicker.
 
 The screen sweep (`31 02`) is a burn-in-protection animation that MyASUS pairs
 with static content; this driver leaves it **off** by default and only sends the
-command when requested (`zenvision.py image --sweep`).
+command when requested (e.g. `zvstudio command sweep on`).
 
 ## Playing an animation (flicker-free)
 
@@ -169,7 +171,7 @@ No per-frame begin/apply ⇒ no blanking between frames.
 `35 01 <val>` sets the brightness on a 0–255 byte scale. The named defaults seen
 in the MyASUS captures are `0f` (dim), `4f` (mid), `bc` (bright). The CLI
 accepts any byte via `--bright N` (decimal or `0x` hex, defaulting to `4f`) or
-the standalone `zenvision.py bright N`. Tune by eye.
+`zvstudio brightness N` against the daemon. Tune by eye.
 
 ## Built-in content
 
@@ -179,7 +181,7 @@ MyASUS drives the built-in content with these sequences:
 * **Clock layout 1**: battery icon → clock 1 → speed → datetime
 * **Clock layout 2**: screen sweep on → clock 2 → speed → datetime
 
-`zenvision.py theme`, `clock`, `speed` and `bootanim` implement these directly.
+`zvstudio command theme|clock|speed|bootanim` implements these directly.
 
 ## Settings sequence / recovery
 
