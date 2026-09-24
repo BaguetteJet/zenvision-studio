@@ -11,12 +11,24 @@ permissions:
 jobs:
   build-deb:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One artifact per supported distro Python: 3.12 = Ubuntu 24.04 LTS,
+          # 3.14 = Ubuntu/Kubuntu 26.04.
+          - python: "3.12"
+            pytag: py312
+          - python: "3.14"
+            pytag: py314
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Build .deb
+        env:
+          PYTAG: ${{ matrix.pytag }}
         run: packaging/deb/build-deb.sh
       - name: Upload to GitHub Release
         env:
@@ -28,8 +40,8 @@ jobs:
             echo "not on a tag — build finished, skipping release upload"
             exit 0
           fi
-          if gh release view "v${VERSION}" >/dev/null 2>&1; then
-            gh release upload "v${VERSION}" dist/*.deb --clobber
-          else
-            gh release create "v${VERSION}" dist/*.deb --generate-notes
+          # The two matrix jobs race to create the release; the loser moves on.
+          if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
+            gh release create "v${VERSION}" --generate-notes --verify-tag || true
           fi
+          gh release upload "v${VERSION}" dist/*.deb --clobber
