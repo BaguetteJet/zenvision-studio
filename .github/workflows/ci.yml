@@ -10,7 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.10", "3.11", "3.12"]
+        # 3.10 = declared floor (requires-python); 3.11/3.13 = Debian 12/13 and
+        # Ubuntu 25.04 default Python (source installs); 3.12/3.14 = the .deb
+        # targets for Ubuntu 24.04 LTS / 26.04.
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     env:
       ZVSTUDIO_BACKEND: mock
     steps:

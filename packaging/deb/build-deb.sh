@@ -11,7 +11,11 @@
 # Default "tray" matches the release .deb (pystray for the system-tray icon;
 # numpy is a base dependency).
 #
-# Output: dist/zenvision-studio_<version>_<arch>.deb
+# The bundled wheels are CPython-minor-specific, so the artifact name carries
+# the building interpreter and the package refuses to start on a different one:
+#   dist/zenvision-studio_<version>_<arch>_<pytag>.deb
+# Release builds: py312 (Ubuntu 24.04 LTS), py314 (Ubuntu/Kubuntu 26.04).
+# Override the suffix with PYTAG=... when building for another distro.
 #
 # Prereqs: dpkg-deb, python3 >= 3.11 (for pip) with network access to PyPI.
 set -euo pipefail
@@ -22,11 +26,15 @@ command -v dpkg-deb >/dev/null || { echo "error: dpkg-deb not found" >&2; exit 1
 
 VERSION=$(python3 -c "import re; print(re.search(r'^version = \"([^\"]+)\"', open('pyproject.toml').read(), re.M).group(1))")
 ARCH=$(dpkg --print-architecture)
+# The wheels bundled below belong to this interpreter; declare it and tag the
+# artifact so users install the one matching their system python3.
+PYFLOOR=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+PYTAG="${PYTAG:-py${PYFLOOR/./}}"
 MAINTAINER="${MAINTAINER:-Igor Kochanski <baguette.jet@gmail.com>}"
 EXTRAS="${EXTRAS:-tray}"
-DEB="dist/zenvision-studio_${VERSION}_${ARCH}.deb"
+DEB="dist/zenvision-studio_${VERSION}_${ARCH}_${PYTAG}.deb"
 
-echo "==> zenvision-studio ${VERSION} (arch: ${ARCH}, extras: ${EXTRAS:-none})"
+echo "==> zenvision-studio ${VERSION} (arch: ${ARCH}, python: ${PYFLOOR}, tag: ${PYTAG}, extras: ${EXTRAS:-none})"
 
 # ---------------------------------------------------------------------------
 # Stage the payload
@@ -49,9 +57,19 @@ fi
 install -d "$STAGE/usr/bin"
 cat >"$STAGE/usr/bin/zvstudio" <<'EOF'
 #!/bin/sh
-# Bundled dependencies live in /opt/zenvision-studio/site.
+# Bundled dependencies live in /opt/zenvision-studio/site. They contain C
+# extensions built for one CPython minor, so refuse to start on another with a
+# clear message instead of a cryptic ImportError.
+want_py="@PYFLOOR@"
+have_py="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)"
+if [ "$have_py" != "$want_py" ]; then
+    echo "zenvision-studio: this package needs Python ${want_py}, but python3 is ${have_py:-missing}." >&2
+    echo "Install the .deb matching your system's Python version, or use the source install script." >&2
+    exit 1
+fi
 exec env PYTHONPATH=/opt/zenvision-studio/site python3 -c "import sys; from zvstudio.cli import main; sys.exit(main(sys.argv[1:]))" "$@"
 EOF
+sed -i "s/@PYFLOOR@/${PYFLOOR}/" "$STAGE/usr/bin/zvstudio"
 chmod 0755 "$STAGE/usr/bin/zvstudio"
 
 # ---------------------------------------------------------------------------
@@ -108,14 +126,14 @@ Section: utils
 Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER
-Depends: python3 (>= 3.10)
+Depends: python3 (>= $PYFLOOR)
 Homepage: https://github.com/baguettejet/zenvision-studio
 Description: Drive the ASUS ZenVision lid OLED from Linux.
   A headless daemon plus web UI that renders live applets, audio-reactive
   visualisers, multi-zone layouts and timeline animations on the 256x64
   monochrome lid OLED, then pushes grayscale frames over USB.
   Python dependencies are bundled under /opt/zenvision-studio, so only a
-  working python3 (>= 3.10) is required.
+  working python3 (>= $PYFLOOR) is required.
 EOF
 
 cat >"$STAGE/DEBIAN/postinst" <<'EOF'

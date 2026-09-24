@@ -13,6 +13,9 @@ Choose a method:
 > The tray requires two system packages, which ship with **Kubuntu** by default. For Ubuntu and Debian:    
 > `sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1`
 
+* Ubuntu / Kubuntu **26.04+** (Python 3.14) → `zenvision-studio_*_py314.deb`
+* Ubuntu **24.04 LTS** (Python 3.12) → `zenvision-studio_*_py312.deb`
+
 Download the latest `.deb` from the [Releases](https://github.com/baguettejet/zenvision-studio/releases) page and install it:
 
 ```bash

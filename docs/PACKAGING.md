@@ -41,8 +41,11 @@ else is affected.
 ## Building locally
 
 ```bash
-packaging/deb/build-deb.sh          # -> dist/zenvision-studio_<version>_<arch>.deb
+packaging/deb/build-deb.sh          # -> dist/zenvision-studio_<version>_<arch>_<pytag>.deb
 ```
+
+The artifact is tagged with the interpreter that built it (`_py312`, `_py314`, …);
+that is the only Python minor it will run on. `PYTAG=...` overrides the suffix.
 
 Prerequisites: `dpkg-deb`, a Python 3.11+ `python3 -m pip`, and PyPI access (the
 build downloads all dependencies into the bundle). Extras are controlled by the
@@ -67,19 +70,20 @@ root-owned, so the package doesn't depend on who built it).
   the build machine's CPU (`dpkg --print-architecture` is stamped into the package).
   Build on the architecture you want to release for (the CI workflow builds on
   `ubuntu-latest` = x86_64/amd64).
-- **Wheels are CPython-version-specific** for some deps (uvloop, httptools).
-  Build with the Python you expect users to run. The CI workflow uses Python 3.12,
-  which covers Debian 12+ and Ubuntu 22.04+ systems out of the box. Building on
-  Python 3.14 (e.g. a current Ubuntu release) produces a package that only runs on
-  Python >= 3.14 machines.
-- The `Depends: python3 (>= 3.10)` line is the floor from `pyproject.toml`; the
-  actual runtime floor is dictated by the wheels bundled, as above.
+- **Wheels are CPython-minor-specific** (uvloop, httptools, pydantic-core, numpy, …):
+  an artifact only runs on the exact Python minor it was built with. The release
+  workflow builds one per supported distro Python — `py312` (Ubuntu 24.04 LTS) and
+  `py314` (Ubuntu/Kubuntu 26.04). Local builds are tagged with your `python3`.
+  The `/usr/bin/zvstudio` wrapper checks the host minor and exits with a clear
+  message on a mismatch (instead of a cryptic ImportError).
+- Each artifact declares `Depends: python3 (>= <major.minor>)` matching the
+  interpreter it was built with, so apt refuses to install it on older systems.
 
 ## How to release
 
 Everything is automated: pushing a `v*` tag triggers
-`.github/workflows/release.yml`, which builds the .deb on `ubuntu-latest`
-(Python 3.12, x86_64) and uploads it to a GitHub release for that tag.
+`.github/workflows/release.yml`, which builds both .debs on `ubuntu-latest`
+(x86_64, Python 3.12 + 3.14) and uploads them to a GitHub release for that tag.
 
 1. **Bump the version** in `pyproject.toml` (`version = "0.2.1"`).
 2. **Commit and tag**:
@@ -88,13 +92,15 @@ Everything is automated: pushing a `v*` tag triggers
    git tag v0.2.1
    git push origin main --tags
    ```
-3. **Let CI do the rest.** The `release` workflow builds `dist/zenvision-studio_0.2.1_amd64.deb`
-   and creates a GitHub release `v0.2.1` (notes auto-generated from merged PRs)
-   with the .deb attached. If the release already exists, it just uploads/clobbers
-   the asset.
-4. **Sanity-check the installed package** on a clean machine:
+3. **Let CI do the rest.** The `release` workflow builds
+   `dist/zenvision-studio_0.2.1_amd64_py312.deb` and `..._py314.deb` and creates a
+   GitHub release `v0.2.1` (notes auto-generated from merged PRs) with both
+   attached. If the release already exists, it just uploads/clobbers the assets.
+4. **Sanity-check the installed package** on a clean machine (pick the matching
+   Python):
    ```bash
-   sudo apt install ./zenvision-studio_0.2.1_amd64.deb
+   sudo apt install ./zenvision-studio_0.2.1_amd64_py312.deb   # 24.04 LTS / Python 3.12
+   sudo apt install ./zenvision-studio_0.2.1_amd64_py314.deb   # 26.04+ / Python 3.14
    zvstudio daemon            # web UI on http://127.0.0.1:8787
    systemctl --user enable --now zvstudio
    ```
