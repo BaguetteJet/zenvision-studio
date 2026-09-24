@@ -10,7 +10,6 @@ Le screensaver est écrit en demi-blocs Unicode (█ ▀ ▄), donc chaque cellu
 exactement deux pixels verticaux : on le reconstitue en bitmap sans rien
 réinterpréter, plutôt que de re-typographier le nom dans une autre police.
 """
-import io
 import sys
 
 from PIL import Image
@@ -31,7 +30,7 @@ def halfblocks_to_bitmap(lines):
     """Demi-blocs Unicode -> bitmap 1 colonne x 2 pixels par cellule."""
     top = {"█": 1, "▀": 1}      # █ ▀
     bot = {"█": 1, "▄": 1}      # █ ▄
-    w = max(len(l) for l in lines)
+    w = max(len(ln) for ln in lines)
     im = Image.new("L", (w, len(lines) * 2), 0)
     px = im.load()
     for r, line in enumerate(lines):
@@ -44,7 +43,7 @@ def halfblocks_to_bitmap(lines):
 
 
 def load_logo():
-    lines = io.open(BRANDING, encoding="utf-8").read().split("\n")
+    lines = open(BRANDING, encoding="utf-8").read().split("\n")
     return halfblocks_to_bitmap(lines[LOGO_LINES[0]:LOGO_LINES[1]])
 
 

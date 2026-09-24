@@ -8,8 +8,8 @@
 # is needed, which is what makes it viable on old Ubuntu/Debian releases.
 #
 # Extras to bundle are controlled by EXTRAS (comma-separated, empty = none).
-# Default "audio,tray" matches the release .deb (adds numpy for the VU-meter
-# and pystray for the system-tray icon).
+# Default "tray" matches the release .deb (pystray for the system-tray icon;
+# numpy is a base dependency).
 #
 # Output: dist/zenvision-studio_<version>_<arch>.deb
 #
@@ -23,7 +23,7 @@ command -v dpkg-deb >/dev/null || { echo "error: dpkg-deb not found" >&2; exit 1
 VERSION=$(python3 -c "import re; print(re.search(r'^version = \"([^\"]+)\"', open('pyproject.toml').read(), re.M).group(1))")
 ARCH=$(dpkg --print-architecture)
 MAINTAINER="${MAINTAINER:-Igor Kochanski <baguette.jet@gmail.com>}"
-EXTRAS="${EXTRAS:-audio,tray}"
+EXTRAS="${EXTRAS:-tray}"
 DEB="dist/zenvision-studio_${VERSION}_${ARCH}.deb"
 
 echo "==> zenvision-studio ${VERSION} (arch: ${ARCH}, extras: ${EXTRAS:-none})"
@@ -109,7 +109,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER
 Depends: python3 (>= 3.10)
-Homepage: https://github.com/tarpediem/zenvision-studio
+Homepage: https://github.com/baguettejet/zenvision-studio
 Description: Drive the ASUS ZenVision lid OLED from Linux.
   A headless daemon plus web UI that renders live applets, audio-reactive
   visualisers, multi-zone layouts and timeline animations on the 256x64

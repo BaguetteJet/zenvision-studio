@@ -46,12 +46,14 @@ packaging/deb/build-deb.sh          # -> dist/zenvision-studio_<version>_<arch>.
 
 Prerequisites: `dpkg-deb`, a Python 3.11+ `python3 -m pip`, and PyPI access (the
 build downloads all dependencies into the bundle). Extras are controlled by the
-`EXTRAS` env var (comma-separated, empty = none); the default is `audio,tray`
-(numpy for the VU-meter / spectrum, pystray for the KDE tray icon):
+`EXTRAS` env var (comma-separated, empty = none); the default is `tray`
+(pystray for the KDE tray icon; numpy is a base dependency). The release `.deb`
+is built with that default, so **video playback is not bundled** — the `video`
+extra would add imageio + a ~80 MB ffmpeg binary (~30 MB to the download):
 
 ```bash
-EXTRAS=  packaging/deb/build-deb.sh                    # minimal bundle
-EXTRAS="audio,video,tray" packaging/deb/build-deb.sh   # + video player (imageio)
+EXTRAS=  packaging/deb/build-deb.sh            # minimal bundle
+EXTRAS="video,tray" packaging/deb/build-deb.sh # + video player (imageio)
 ```
 
 The script stages everything under `dist/_build-deb/`, writes the control files,

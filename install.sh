@@ -15,13 +15,13 @@
 #
 # Overrides:
 #   VENV=/path/to/venv ./install.sh      # venv location (default: ./.venv)
-#   EXTRAS=audio ./install.sh            # pip extras (default: audio,video,tray)
+#   EXTRAS=video ./install.sh            # pip extras (default: video,tray)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="${VENV:-$ROOT/.venv}"
 BIN="$VENV/bin/zvstudio"
-EXTRAS="${EXTRAS:-audio,video,tray}"
+EXTRAS="${EXTRAS:-video,tray}"
 UDEV_SRC="$ROOT/udev/70-zenvision.rules"
 
 UNINSTALL=0

@@ -38,6 +38,25 @@ The **KDE tray** auto-starts at your next login.
 
 Remove it any time with `sudo apt remove zenvision-studio` (the daemon is stopped and disabled, your `~/.config/zvstudio/` data is kept). How the package is built and released: [PACKAGING.md](PACKAGING.md).
 
+> **Note:** the packaged `.deb` does not include video playback. The `video`
+> extra (imageio + a bundled ffmpeg, ~30 MB) is left out to keep the download
+> small; source installs can add it with `pip install -e ".[video]"`.
+
+To add video support to an existing `.deb` install (needs `python3-pip`; the
+bundled numpy/pillow already cover imageio's dependencies):
+
+```bash
+sudo python3 -m pip install --no-deps --target /opt/zenvision-studio/site imageio imageio-ffmpeg
+systemctl --user restart zvstudio
+```
+
+To remove it again (apt doesn't track these files):
+
+```bash
+sudo rm -rf /opt/zenvision-studio/site/imageio*
+systemctl --user restart zvstudio
+```
+
 ## Installation Script
 
 Install ZenVision Studio directly from a source checkout. This is a good option for development and other Linux distributions; there is no performance difference compared to the packaged version.
@@ -59,7 +78,7 @@ Create a virtual environment and install the package:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[audio,video]"
+pip install -e ".[video]"
 ```
 
 Non-root USB access:
@@ -87,7 +106,7 @@ not on Kubuntu):
 
 ```bash
 python -m venv --system-site-packages .venv   # when (re)creating the venv
-pip install -e ".[audio,video,tray]"
+pip install -e ".[video,tray]"
 sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1
 # Arch/CachyOS: sudo pacman -S --needed python-gobject libayatana-appindicator
 cp systemd/zvstudio-tray.desktop ~/.config/autostart/   # auto-start on login

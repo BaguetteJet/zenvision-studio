@@ -139,8 +139,8 @@ VU-meter pull from this singleton.
   output, but applets should produce grayscale directly.
 - **Mock-first.** Anything you build must run under `ZVSTUDIO_BACKEND=mock` — that's what CI
   and the tests use. Don't assume a device is attached.
-- **Optional deps degrade, never crash.** `audio` (numpy) and `video` (imageio) are extras;
-  `parec`/`pactl` are system deps. Guard their use and fall back, matching `core/audio.py`.
+- **Optional deps degrade, never crash.** `video` (imageio) is an extra; `numpy` is a base
+  dependency and `parec`/`pactl` are system deps. Guard their use and fall back, matching `core/audio.py`.
 - The daemon thread swallows per-frame render exceptions to stay alive — a broken applet shows
   a blank/frozen frame rather than killing the loop. Check logs/preview, not a crash.
 - Config persists to `~/.config/zvstudio/config.json`; uploads go to `~/.config/zvstudio/uploads/`.
