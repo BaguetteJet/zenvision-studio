@@ -167,6 +167,8 @@ def draw(img: Image.Image) -> ImageDraw.ImageDraw:
 
 
 def text_width(s: str, size: int) -> int:
+    if s.isascii():
+        return int(font(size).getlength(s))
     total = 0
     for kind, run in _segments(s):
         if kind == "text":
@@ -199,8 +201,8 @@ def _blit_runs(strip: Image.Image, x0: int, cy: int, s: str, size: int, fill: in
 
 
 def text(img, xy, s, size=16, fill=255, anchor="lm"):
-    # Fast path: no emoji -> exact original behaviour (keeps all anchors intact).
-    if all(seg[0] == "text" for seg in _segments(s)):
+    if s.isascii():
+        # Fast path: pure ASCII contains no emoji segments.
         ImageDraw.Draw(img).text(xy, s, font=font(size), fill=fill, anchor=anchor)
         return img
     # Emoji present: honour horizontal anchor (l/m/r), vertically center on y.
@@ -215,27 +217,25 @@ def text(img, xy, s, size=16, fill=255, anchor="lm"):
     return img
 
 
-def render_text(s: str, size: int, fill: int = 255) -> Image.Image:
+def render_text(s: str, size: int, fill: int = 255, height: int = HEIGHT) -> Image.Image:
     """Render a string to a tightly-sized grayscale strip (for scrolling)."""
     w = max(1, text_width(s, size))
-    strip = Image.new("L", (w, HEIGHT), 0)
-    _blit_runs(strip, 0, HEIGHT // 2, s, size, fill)
+    strip = Image.new("L", (w, height), 0)
+    _blit_runs(strip, 0, height // 2, s, size, fill)
     return strip
 
 
-def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, gap: int = 24) -> None:
-    """Blit a horizontally-scrolling strip into ``dest`` at column ``x``.
+def scroll(strip: Image.Image, offset: int, dest: Image.Image, x: int = 0, y: int = 0, gap: int = 24) -> None:
+    """Blit a horizontally-scrolling strip into ``dest`` at column ``x``, row ``y``.
 
     Wraps with a gap so long text marquees seamlessly. ``offset`` advances left.
     """
     w = strip.width + gap
     off = offset % w if w else 0
     visible = dest.width - x
-    tile = Image.new("L", (w, strip.height), 0)
-    tile.paste(strip, (0, 0))
-    cur = -off
+    cur = x - off
     while cur < visible:
-        dest.paste(tile, (x + cur, 0))
+        dest.paste(strip, (cur, y))
         cur += w
 
 

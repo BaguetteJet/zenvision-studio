@@ -35,6 +35,13 @@ class LayoutApplet(Applet):
             except Exception:
                 pass
 
+    @property
+    def fps(self) -> float:
+        # A layout renders every zone each tick, so honour the fastest zone's rate.
+        if not self.zones:
+            return super().fps
+        return max(ap.fps for ap, _ in self.zones)
+
     def render(self, ctx: Ctx):
         img = F.canvas(*self.size)
         for ap, (x, y, bw, bh) in self.zones:

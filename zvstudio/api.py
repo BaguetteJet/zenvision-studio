@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, WebSocket, WebSocketDisconnect
@@ -56,10 +57,10 @@ def create_app(daemon: Daemon) -> FastAPI:
         daemon.set_enabled(bool(payload.get("on", True)))
         return {"ok": True, "enabled": daemon.comp.enabled}
 
-    @app.post("/api/flash")
-    def flash(payload: dict) -> dict:
-        daemon.set_flash(bool(payload.get("on", True)))
-        return {"ok": True, "flash": daemon.comp.beat_flash}
+    @app.post("/api/command")
+    def command(payload: dict) -> dict:
+        result = daemon.run_command(payload.get("name"), payload.get("value"))
+        return {"ok": True, **result}
 
     @app.post("/api/pin")
     def pin(payload: dict) -> dict:
@@ -119,10 +120,18 @@ def create_app(daemon: Daemon) -> FastAPI:
     @app.websocket("/ws/preview")
     async def ws_preview(ws: WebSocket) -> None:
         await ws.accept()
+        last_raw: bytes | None = None  # raw pixel bytes of the last frame we sent
         try:
             while True:
-                png = daemon.preview_png()
-                await ws.send_text("data:image/png;base64," + base64.b64encode(png).decode())
+                img = daemon.preview_image()
+                raw = img.tobytes()
+                if raw != last_raw:
+                    buf = io.BytesIO()
+                    img.save(buf, format="PNG")
+                    await ws.send_text(
+                        "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+                    )
+                    last_raw = raw
                 await asyncio.sleep(1 / 15)
         except WebSocketDisconnect:
             return

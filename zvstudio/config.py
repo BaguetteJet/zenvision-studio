@@ -8,13 +8,15 @@ from pathlib import Path
 APP = "zvstudio"
 
 DEFAULT = {
-    "brightness": 255,
-    "fps": 20,
-    "playlist": [
-        {"applet": "clock", "config": {}, "duration": 10},
-        {"applet": "sysmon", "config": {}, "duration": 10},
-    ],
-    "preempt": ["nowplaying"],
+    "brightness": 128,
+    "fps": 60,
+    "playlist": [{
+        "applet": "starfield",
+        "duration": 0
+    }],
+    "preempt": [
+    "nowplaying"
+    ]
 }
 
 

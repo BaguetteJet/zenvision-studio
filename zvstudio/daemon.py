@@ -16,7 +16,7 @@ class Daemon:
     def __init__(self, backend: str | None = None) -> None:
         self.panel = get_panel(backend)
         self.cfg = cfg.load()
-        self.comp = Compositor(self.panel, fps=self.cfg.get("fps", 20))
+        self.comp = Compositor(self.panel, fps=self.cfg.get("fps", 60) or 60)
         self._applets: dict[str, object] = {}
         self.comp.set_brightness(self.cfg.get("brightness", 255))
         self.apply_config()
@@ -57,8 +57,13 @@ class Daemon:
             "size": list(self.panel.size),
             "enabled": self.comp.enabled,
             "brightness": self.comp.brightness,
-            "flash": self.comp.beat_flash,
+            "builtin": self.comp.builtin,
             "current": self.comp.current_key(),
+            "fps": {
+                "cap": self.comp.fps,
+                "declared": self.comp.current_fps(),
+                "actual": self.comp.actual_fps,
+            },
             "playlist": self.cfg.get("playlist", []),
             "preempt": self.cfg.get("preempt", []),
         }
@@ -78,9 +83,29 @@ class Daemon:
 
     def set_enabled(self, on: bool) -> None:
         self.comp.set_enabled(on)
+        if not on:
+            # Power off pairs with the screen sweep off
+            try:
+                self.panel.send_command("sweep", False)
+            except Exception:
+                pass
 
-    def set_flash(self, on: bool) -> None:
-        self.comp.beat_flash = bool(on)
+    def run_command(self, name: str, value=None) -> dict:
+        """Send a built-in content / panel-setting command (PROTOCOL.md v2).
+
+        ``clock``/``theme`` hand the panel to its own engine: the compositor
+        pauses rendering until custom content is resumed. Clock layout 2 also
+        enables the screen sweep (the MyASUS pairing). ``status`` queries what
+        the panel is currently playing instead of sending anything.
+        """
+        if name == "status":
+            return {"engine": self.panel.query_engine()}
+        if name == "clock" and int(value) == 2:
+            self.panel.send_command("sweep", True)  # clock 2 is paired with sweep on
+        self.panel.send_command(name, value)
+        if name in ("clock", "theme"):
+            self.comp.set_builtin(f"{name}:{value}")
+        return {}
 
     def pin(self, key: str | None, config: dict | None = None) -> None:
         if key is None:

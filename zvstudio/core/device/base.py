@@ -46,6 +46,13 @@ class Panel(ABC):
     def set_brightness(self, brightness: int) -> None:  # optional
         pass
 
+    def send_command(self, name: str, value=None) -> None:  # optional
+        """Send a built-in content / panel-setting command (see PROTOCOL.md)."""
+
+    def query_engine(self) -> str | None:  # optional
+        """Ask the panel what content engine is playing (best-effort)."""
+        return None
+
     # --- helpers ---------------------------------------------------------
     def clear(self) -> None:
         self.show_image(Image.new("L", self.size, 0), 0)

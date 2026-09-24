@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## What this is
 
@@ -24,8 +24,10 @@ ZVSTUDIO_BACKEND=mock zvstudio daemon    # force mock (no device)
 
 # Lint + tests (must pass; CI runs these on py3.10–3.12 with ZVSTUDIO_BACKEND=mock)
 ruff check .
-pytest -q
+pytest -q                    # includes tests/test_fps.py — drives every applet through
+                             # the real compositor loop (~25 s; run it alone while iterating)
 pytest tests/test_api.py::test_pin_applet   # single test
+python tests/profile_applets.py             # per-applet render-cost benchmark (standalone, not a pytest)
 ```
 
 `ruff` config lives in `pyproject.toml` (line-length 110; rules `E,F,I,UP,B`). There is no
@@ -46,7 +48,7 @@ cli.py            argparse entry point (zvstudio). Two modes:
 daemon.py         Daemon: owns the panel + Compositor, builds Scenes from config, exposes control verbs
 api.py            FastAPI app (create_app(daemon)): REST + /ws/preview WebSocket mirror + static web/
 config.py         JSON config under XDG (~/.config/zvstudio/config.json); playlist + preempt + uploads/
-core/compositor.py   Render loop in a daemon thread: playlist rotation, preempt, beat-flash, streaming
+core/compositor.py   Render loop in a daemon thread: playlist rotation, preempt, built-in pause, streaming
 core/registry.py     Applet discovery: the BUILTIN list + `zvstudio.applets` entry-point plugins
 core/frame.py        Pillow drawing helpers (canvas/text/scroll/sparkline/bar, font caches incl. CJK)
 core/audio.py        Singleton AudioLevel analyser: parec monitor → RMS/FFT bands/beat/waveform
@@ -58,7 +60,9 @@ web/                 index.html + app.js + style.css — vanilla JS, no build st
 ### Compositor (`core/compositor.py`)
 
 The single source of truth for what's on screen. Runs `_loop()` in a background daemon
-thread at `fps`. Each tick `_pick()` chooses the active applet by priority:
+thread. Each applet renders at its declared `fps` (capped by the daemon's global fps), so
+a 2 fps clock costs a tenth of a 20 fps one; control calls wake the loop early. Each tick
+`_pick()` chooses the active applet by priority:
 
 1. **pinned** — an explicit manual override (CLI `show`, web pin, a `draw`/`layout` from the
    editor). Beats everything; no rotation.
@@ -68,8 +72,22 @@ thread at `fps`. Each tick `_pick()` chooses the active applet by priority:
 
 `_reset_current()` calls `on_start()`/`on_stop()` hooks on transitions. The last rendered
 frame is cached in `_preview` so **any** backend (including a real USB panel you can't read
-back) can mirror to the browser. `beat_flash` brightens the whole frame on each audio beat.
-Mutating state (`set_playlist`, `pin`, `set_preempt`) is lock-guarded.
+back) can mirror to the browser. Mutating state (`set_playlist`, `pin`, `set_preempt`) is
+lock-guarded.
+
+The wait between frames is computed **after** `render()` + `push_frame()` complete (a real
+USB push costs ~9 ms), so panel latency never lengthens the cadence — a declared 60 fps
+stays 60 fps on hardware. The achieved rate is measured (`Compositor.actual_fps`) and
+surfaced through `/api/status` (`fps: {cap, declared, actual}`) and the web UI status pill.
+`tests/test_fps.py` asserts every applet's measured rate matches `min(daemon_fps,
+applet_fps)` (0.5 fps floor), including a slow-push panel regression test.
+Built-in content commands (`clock`/`theme`, sent via `POST /api/command`) hand the panel to
+its own engine: `set_builtin()` pauses the render loop **without** pushing black, and the
+UI hides the live preview (frames are generated on the panel, not the host). Pinning an
+applet, changing the playlist, or `resume` re-enters streaming mode
+(`_enter_custom()` → `panel.begin_stream`) and forces the next frame to actually push.
+Brightness is **hardware** (`35 01`, PROTOCOL.md v2) — `set_brightness()` forwards it to the
+panel and never touches pixel data.
 
 ### Applets (`core/applets/`)
 
@@ -78,6 +96,10 @@ An applet subclasses `Applet` (`base.py`), sets a class-level `AppletMeta` (key,
 since active), `frame`, and `size`. Keep `render()` cheap — it runs every frame. Config
 options must be declared in `meta.config_schema` (`{field: {type, default, label, …}}`) so
 the UI/CLI can expose them generically; `self.config` merges declared defaults with overrides.
+Declare the desired rate with an `"fps"` schema field (the compositor paces at
+`min(daemon_fps, applet_fps)`); animate from `ctx.t`, **never** `ctx.frame` or per-render
+counters, so speed survives daemon caps and slow pushes — sequence players index frames by
+`int(ctx.t * self.fps)` (`frames.py`, `player.py`).
 
 Built-ins are grouped: `clock`, `sysmon`, `nowplaying` (MPRIS via dbus-next, preempting),
 `weather`, `text`, `player` (image/gif/video), `logo`; visualisers in `viz.py`
@@ -89,8 +111,9 @@ into sub-boxes; `FramesApplet` (`frames.py`) plays an in-memory frame sequence f
 web timeline editor.
 
 **To add a built-in applet:** create the class, then add it to `BUILTIN` in
-`core/registry.py`. Third-party applets register via a `[project.entry-points."zvstudio.applets"]`
-entry (see `examples/sample_applet.py`) and are auto-discovered — no core edit needed.
+`core/registry.py` (full guide: `docs/APPLETS.md`). Third-party applets register via a
+`[project.entry-points."zvstudio.applets"]` entry (see `examples/sample_applet.py`) and are
+auto-discovered — no core edit needed.
 
 ### Panel backends (`core/device/`)
 
@@ -116,8 +139,8 @@ VU-meter pull from this singleton.
   output, but applets should produce grayscale directly.
 - **Mock-first.** Anything you build must run under `ZVSTUDIO_BACKEND=mock` — that's what CI
   and the tests use. Don't assume a device is attached.
-- **Optional deps degrade, never crash.** `audio` (numpy) and `video` (imageio) are extras;
-  `parec`/`pactl` are system deps. Guard their use and fall back, matching `core/audio.py`.
+- **Optional deps degrade, never crash.** `video` (imageio) is an extra; `numpy` is a base
+  dependency and `parec`/`pactl` are system deps. Guard their use and fall back, matching `core/audio.py`.
 - The daemon thread swallows per-frame render exceptions to stay alive — a broken applet shows
   a blank/frozen frame rather than killing the loop. Check logs/preview, not a crash.
 - Config persists to `~/.config/zvstudio/config.json`; uploads go to `~/.config/zvstudio/uploads/`.

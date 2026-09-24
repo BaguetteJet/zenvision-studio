@@ -1,195 +1,152 @@
-<div align="center">
+> **Fork Notice** - This project is a custom version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio) by [tarpediem](https://github.com/tarpediem), focused on performance, personalization, and Kubuntu support.
 
-# <img src="zvstudio/web/logo.png" width="38" align="center"> zenvision-studio
+# ZenVision Studio · *BaguetteJet EDITION*
 
-**Turn the lid OLED of an ASUS Zenbook into a live dashboard and a beat-reactive VJ screen — on Linux.**
+ZenVision lid display controls on Linux for the ASUS Zenbook 14X Space Edition laptop.
 
-🟢 *The first open-source Linux support for the ASUS **ZenVision** lid OLED.*
-The protocol was reverse-engineered from scratch (Ghidra on MyASUS) and lives in the
-companion driver **[zenvision-linux](https://github.com/tarpediem/zenvision-linux)**.
+![The ZenVision lid OLED running zenvision-studio](docs/img/starfield.gif)
 
-![The ZenVision lid OLED running zenvision-studio](docs/lid.gif)
+## Introduction
 
-*Audio-reactive visualisers on the actual lid OLED of an ASUS Zenbook 14X OLED Space Edition (UX5401ZAS).*
+The Zenbook 14X OLED Space Edition (UX5401ZAS) has a small 256×64 monochrome OLED display built into the lid. ASUS only provides MyASUS Windows software for it.
 
-[![CI](https://github.com/tarpediem/zenvision-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/tarpediem/zenvision-studio/actions)
-&nbsp;·&nbsp; MIT &nbsp;·&nbsp; cross-desktop &nbsp;·&nbsp; control it from your phone
+This project brings support to Linux through a daemon and web UI, featuring applets, audio-reactive visualisers, a timeline animation editor, and drag-and-drop screen layouts.
 
-</div>
+**This version** of zenvision studio combines the original [zenvision-linux](https://github.com/tarpediem/zenvision-linux) driver with additional commands discovered through my own [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research), along with performance improvements and personal customizations. Packaging for Kubuntu/Ubuntu/Debian instead of Arch/CachyOS.
 
----
+> [!WARNING]   
+> **OLED Burn-In Risk**   
+> Displaying static elements for an extended amount of time will cause permanent pixel degradation. 
 
-## What is this?
+## Fork Purpose
 
-The Zenbook 14X OLED Space Edition has a tiny **256×64 monochrome OLED in the lid**
-("ZenVision"). ASUS only ships a Windows app for it. This project drives it from
-Linux with a small **daemon + web UI**: live **applets** (clock, system stats,
-now-playing…), a gallery of **audio-reactive demoscene visualisers**, an
-**in-browser timeline animation editor** (keyframes + tweening), and a
-**drag-and-drop zone layout** so you can put several effects on screen at once.
+### Completed
 
-No `/dev/fb`, no GUI toolkit lock-in — just push grayscale frames over USB. Works the
-same on KDE, GNOME, Sway, or headless.
+- ✅ Optimize display process (encode/compositor)
+- ✅ Optimize individual applets (render)
+- ✅ Overhaul the starfield applet (my favourite)
+- ✅ Fix nowplaying applet text and add album cover
+- ✅ Benchmark applet rendering performance
+- ✅ Start/stop audio reactive processing when required
+- ✅ Make audio reactive content optional
+- ✅ Correct date/time on lid close animation
+- ✅ Remove beat-flash mode
+- ✅ Fix frame generation and add live FPS display
+- ✅ Fix brightness adjustment
+- ✅ Fix configuration save
+- ✅ Fix idle daemon CPU usage
+- ✅ Update web UI and tray menu
+- ✅ Implement built-in content, reverse-enineered through my [protocol research](https://github.com/BaguetteJet/zenvision-protocol-research)
+- ✅ Package for Kubuntu/Ubuntu/Debian with `.deb` GitHub Releases, see [PACKAGING.md](docs/PACKAGING.md)
 
-## Visualisers
+### Remaining
 
-![effects gallery](docs/gallery.png)
+- Fix default animation playing briefly on suspend
 
-Plasma · tunnel · kaleidoscope · Lissajous · moiré · metaballs · ripple · fire ·
-katakana **Matrix** rain · starfield · wireframe cube · triangles — plus a VU-meter
-spectrum and an audio oscilloscope. All grayscale-graded with **MilkDrop-style
-trails**, a global **beat-flash**, an **Auto-VJ** that cycles them, and a **Layout-VJ**
-that switches multi-effect compositions **in tempo**.
+## Performance
 
-## The web UI
+Median render cost per frame compared to the forked version of [zenvision-studio](https://github.com/tarpediem/zenvision-studio/tree/f7a48d0cef338c36d5d2d5476a6ce9539149f619), measured on the mock backend at each applet's declared fps.
 
-| Dashboard | Zone layout editor | Timeline animation editor |
+### Major Improvements
+
+- **Matrix rain applet (≈64× faster)** — glyphs rasterized once per fade level and blitted.
+- **Frame encoder (≈44× faster)** — 16384-pixel 4bpp packing loop vectorized NumPy.
+- **Text marquee (≈21× faster)** — text strip rendered once and cache.
+- **Audio is opt-in** — analysis starts/stops on demand and is off by default.
+- **Idle panel costs nothing** — loop pushes black once and sleeps instead of re-pushing constantly.
+- **Compositor** — loop renders frame rate per applet instead of global rate.
+
+
+## Web UI
+Includes a live mirror of the panel custom content. Controls display, brightness, power, per-applet settings, layouts, animations, playlists. Include built-in themes, clock configuration and settings. Displays current fps.
+
+|Applets | Layouts | Built-in and settings |
 |---|---|---|
-| ![dashboard](docs/ui-dashboard.png) | ![layout](docs/ui-layout.png) | ![timeline](docs/ui-timeline.png) |
+| ![dashboard](docs/img/ui-applets.png) |![layout](docs/img/ui-layout.png) | ![builtin](docs/img/ui-builtin.png) |
 
-Live mirror of the panel, brightness/power, per-applet settings, a drag-and-drop
-**zone editor** (split the panel into regions), and a stylus-friendly **timeline editor**:
-draw keyframes, then **tween** between them with per-keyframe **easing** (linear /
-ease-in / out / in-out), **hold** durations and a seamless **loop tween** — the editor
-interpolates the in-between frames and streams the result to the panel. Reachable from
-your phone over the LAN / Tailscale.
+
+![effects gallery](docs/img/gallery.png)
 
 ## Features
 
-- **Applets**: clock, system monitor (CPU/RAM/temp + sparkline), now-playing
-  (MPRIS marquee + progress), text marquee, weather (Open-Meteo), media player
-  (image / GIF / video).
-- **Audio-reactive visualisers** (see above) with trails, beat-flash, Auto-VJ and a
-  tempo-synced Layout-VJ.
-- **Web UI**: live panel mirror, per-applet settings, zone layout editor, in-browser
-  **timeline** animation editor (keyframes/tween/easing/loop), drag-and-drop upload —
-  works from a phone.
-- **Compositor**: rotates a playlist of scenes; an applet can *preempt* (now-playing
-  pops in on a track change). Flicker-free streaming.
-- **Cross-desktop**: a headless daemon + a browser page — nothing depends on KDE/GNOME.
-- **Hardware-free dev**: a `mock` backend renders to a preview/PNG, so the whole stack
-  (and CI) runs with no device attached.
-- **Pluggable**: third-party applets register via the `zvstudio.applets` entry point.
+- **Applets**: clock, system monitor, now-playing, text, weather, media player, visualizers and more.
+- **Built-in themes**: control panel built-in content including clock layouts, themes, animation speed, etc.
+- **Live FPS**: Web UI shows the actual frame rate for the active applet.
+- **Audio-reactive visualisers**: audio analysis is opt-in and starts/stops on demand.
+- **Web UI**: live mirror, per-applet settings, playlists, zone layouts, and drag-and-drop upload.
+- **Easy dev**: `mock` backend renders a preview, so runs even with no device.
 
-## Install
+## Installation
 
-### Arch Linux (AUR)
+### Kubuntu / Ubuntu / Debian (recommended)
+
+Download the latest `.deb` from the [Releases](https://github.com/baguettejet/zenvision-studio/releases) page and install it:
 
 ```bash
-yay -S zenvision-studio          # latest tagged release
-# …or the rolling build that tracks main:
-yay -S zenvision-studio-git
+sudo apt install ./zenvision-studio_*.deb
 ```
 
-The package installs the udev rule, a systemd **user** service and the tray
-launcher. The reverse-engineered driver is on the AUR too, as `zenvision-linux-git`.
-
-### From source
+**Enable** and start the daemon:
 
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -e ".[audio,video]"     # audio = numpy (spectrum/visualisers); video = imageio
+systemctl --user enable --now zvstudio
 ```
 
-Non-root USB access:
+The **KDE tray** auto-starts at your next login.
 
-```bash
-sudo cp udev/70-zenvision.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules && sudo udevadm trigger
-```
+> Requires Python 3.10 or newer. The tray requires two system packages, which ship with **Kubuntu** by default. For Ubuntu and Debian:    
+> `sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1`
 
-The VU-meter / visualisers read system audio levels via `parec` (PipeWire/PulseAudio).
+See [INSTALL.md](docs/INSTALL.md) for the source install script, manual setup, and **other distributions**.
 
 ## Run
 
 ```bash
-# Start the daemon + web UI (real panel auto-detected, else mock)
-zvstudio daemon                      # open http://127.0.0.1:8787
-
-# No hardware? Force the mock backend and watch the live preview in the browser:
-ZVSTUDIO_BACKEND=mock zvstudio daemon
-
-# CLI
-zvstudio status
-zvstudio show plasma
-zvstudio brightness 0x80
-zvstudio power off
-
-# Or skip the daemon for a one-shot:
-zvstudio play picture.png
-zvstudio anim frames/ --fps 20
+zvstudio daemon   # panel daemon + web UI on http://127.0.0.1:8787
+ZVSTUDIO_BACKEND=mock zvstudio daemon   # no hardware? mock backend + live preview
 ```
 
-Run at login (systemd user service, runs as your user so now-playing/MPRIS works):
-
-```bash
-cp systemd/zvstudio.service ~/.config/systemd/user/
-systemctl --user enable --now zvstudio
-```
-
-### System-tray icon (KDE / Plasma)
-
-A small tray icon controls the running daemon — open the web UI, toggle power /
-beat-flash, pin an applet, set brightness:
-
-```bash
-pip install -e ".[tray]"
-# KDE uses StatusNotifierItem (SNI), so the AppIndicator backend needs these:
-sudo pacman -S --needed python-gobject libayatana-appindicator   # Arch/CachyOS
-# …and the venv must see system 'gi' — create it with --system-site-packages
-# (or install zvstudio into a Python that already has python-gobject).
-
-zvstudio tray                                  # needs `zvstudio daemon` running
-cp systemd/zvstudio-tray.desktop ~/.config/autostart/   # auto-start on login
-```
-
-## Write an applet
-
-An applet returns one 256×64 grayscale frame per tick:
-
-```python
-from zvstudio.core.applets.base import Applet, AppletMeta, Ctx
-from zvstudio.core import frame as F
-
-class HelloApplet(Applet):
-    meta = AppletMeta(key="hello", name="Hello", description="says hi")
-
-    def render(self, ctx: Ctx):
-        img = F.canvas(*self.size)
-        F.text(img, (self.size[0] // 2, 32), "hello :)", size=22, anchor="mm")
-        return img
-```
-
-Register it via a `[project.entry-points."zvstudio.applets"]` entry and it shows up in
-the UI automatically. Full example in [`examples/`](examples/).
+See [CLI.md](docs/CLI.md) for details on commands.
 
 ## Architecture
 
+Everything above the panel backend deals only in PIL grayscale images. Applets draw them, the compositor schedules them, the API mirrors them. Only `core/device/` knows the USB format.
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients"]
+        cli["CLI + Tray"]
+        browser["Web UI"]
+    end
+
+    subgraph daemon["zvstudio daemon process"]
+        api["FastAPI"]
+        comp["Compositor<br>manage frames"]
+        applets["Applets<br/>render frames"]
+        audio["Audio Level<br/>parec monitor"]
+        backend["Backend<br> real / mock"]
+    end
+
+    panel["Display Panel"]
+
+    cli -->|HTTP| api
+    browser -->|"WebSocket"| api
+    api -->|controls| comp
+    audio -->|"audio info"| applets
+    applets -->|frame| comp
+    comp -->|push frame| backend
+    backend -->|USB| panel
+    comp -.->|preview| api
 ```
-device/      Panel backends — zenvision (USB) + mock (no hardware)
-applets/     Applet plugins (clock, sysmon, viz/fx/geo, …) — render(ctx) -> 256x64 'L'
-compositor   Render loop: playlist + preempt + beat-flash, flicker-free streaming
-daemon/api   FastAPI: REST + live preview + zone layout + draw upload
-web/         Vanilla-JS dashboard, zone editor, frame editor (no build step)
-```
 
-## Roadmap
-
-**Already shipped** (was the v2 wishlist): in-browser **timeline animation editor**
-(keyframes + tween + easing + loop), weather + **VU-meter** applets, the full
-audio-reactive visualiser / Auto-VJ suite, drag-and-drop zone layouts, and the
-now-playing **preempt** trigger.
-
-**Next:** richer triggers (notifications, lid events, idle) · more applets
-(RSS/ticker, calendar) · more panels behind the `Panel` abstraction · PyPI / AUR
-packaging.
+`play`/`anim` are the exception as they skip the daemon and drive the panel backend directly.
 
 ## Credits
 
-Built on the reverse-engineered protocol documented in
-**[zenvision-linux](https://github.com/tarpediem/zenvision-linux)**. Unofficial; not
-affiliated with or endorsed by ASUS.
+Originally created by [tarpediem](https://github.com/tarpediem), who created the project based on the reverse-engineered protocol documented in [zenvision-linux](https://github.com/tarpediem/zenvision-linux). This project is unofficial and is not affiliated with or endorsed by ASUS. 
+
+This fork is maintained and updated by [BaguetteJet](https://github.com/BaguetteJet).
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)

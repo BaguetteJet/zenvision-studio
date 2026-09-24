@@ -2,8 +2,8 @@
 
 This is a thin HTTP client over a running ``zvstudio daemon`` — it talks to the
 same REST API the CLI uses and does **not** own the panel itself. Menu state
-(power, beat-flash, current applet) is pulled live from ``/api/status`` each time
-the menu opens.
+(power, built-in content, current applet) is pulled live from ``/api/status``
+each time the menu opens.
 
 KDE Plasma only exposes a StatusNotifierItem tray (no legacy XEmbed), so we force
 pystray's AppIndicator backend, which speaks SNI over D-Bus. That backend needs
@@ -53,7 +53,9 @@ def run_tray(url: str = DEFAULT_URL) -> int:
         print(
             "tray needs the AppIndicator backend. Install:\n"
             "  pip install 'zenvision-studio[tray]'\n"
-            "  # plus the system libs (Arch/CachyOS):\n"
+            "  # plus the system libs (Kubuntu/Ubuntu/Debian):\n"
+            "  sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1\n"
+            "  # (Arch/CachyOS):\n"
             "  sudo pacman -S --needed python-gobject libayatana-appindicator\n"
             "The venv must be able to import 'gi' — create it with "
             "`python -m venv --system-site-packages .venv` or install into a\n"
@@ -86,11 +88,21 @@ def run_tray(url: str = DEFAULT_URL) -> int:
         except Exception:
             pass
 
-    def toggle_flash(icon, item) -> None:
-        try:
-            _req(url, "/api/flash", "POST", {"on": not status().get("flash", False)})
-        except Exception:
-            pass
+    def builtin_items():
+        def send(name, value):
+            return lambda icon, item: post("/api/command", {"name": name, "value": value})(icon, item)
+
+        return [
+            Item("Clock layout 1", send("clock", 1), radio=True, checked=lambda item: status().get("builtin") == "clock:1"),
+            Item("Clock layout 2", send("clock", 2), radio=True, checked=lambda item: status().get("builtin") == "clock:2"),
+            Menu.SEPARATOR,
+            Item("Theme 1", send("theme", 1), radio=True, checked=lambda item: status().get("builtin") == "theme:1"),
+            Item("Theme 2", send("theme", 2), radio=True, checked=lambda item: status().get("builtin") == "theme:2"),
+            Item("Theme 3", send("theme", 3), radio=True, checked=lambda item: status().get("builtin") == "theme:3"),
+            Item("Theme 4", send("theme", 4), radio=True, checked=lambda item: status().get("builtin") == "theme:4"),
+            Menu.SEPARATOR,
+            Item("Resume custom content", post("/api/resume")),
+        ]
 
     def applet_items():
         try:
@@ -118,9 +130,9 @@ def run_tray(url: str = DEFAULT_URL) -> int:
         Item("Open web UI", open_ui, default=True),
         Menu.SEPARATOR,
         Item("Power", toggle_power, checked=lambda item: bool(status().get("enabled", False))),
-        Item("Beat-flash", toggle_flash, checked=lambda item: bool(status().get("flash", False))),
         Menu.SEPARATOR,
         Item("Applets", Menu(applet_items)),
+        Item("Built-in", Menu(builtin_items)),
         Item("Brightness", Menu(brightness_items)),
         Item("Resume rotation", post("/api/resume")),
         Menu.SEPARATOR,

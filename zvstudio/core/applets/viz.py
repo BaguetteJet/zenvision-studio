@@ -1,7 +1,8 @@
-"""Audio-reactive generative visualisers (MilkDrop-ish) for the 256x64 panel.
+"""Generative visualisers (MilkDrop-ish) for the 256x64 panel.
 
-Plasma / Tunnel / Scope. They animate on time and react to the live audio
-features (level / bass / treble / waveform). A feedback buffer adds MilkDrop-style
+Plasma / Tunnel / Scope / Kaleido / Lissajous. They animate on time and react
+to the live audio features (level / bass / treble / waveform) when the "audio"
+option is enabled (off by default). A feedback buffer adds MilkDrop-style
 trails: each frame keeps a decayed (optionally zoom-warped) echo of the previous
 output. numpy-accelerated, with a graceful pulse/line fallback without it.
 """
@@ -29,6 +30,14 @@ class _Viz(Applet):
         self._gsize = None
         self._buf = None
 
+    def on_start(self) -> None:
+        if self.config.get("audio", True):
+            self._audio.acquire()
+
+    def on_stop(self) -> None:
+        if self.config.get("audio", True):
+            self._audio.release()
+
     # --- generative grid -------------------------------------------------
     def _grids(self):
         w, h = self.size
@@ -51,18 +60,20 @@ class _Viz(Applet):
     def _feedback(self, frame):
         if not HAVE_NP:
             return Image.fromarray(np.asarray(frame).astype("uint8"), "L")
-        f = frame.astype(np.float32)
+        f = np.asarray(frame, dtype=np.float32)  # no copy when already float32
         h, w = f.shape
         decay = max(0, min(98, int(self.config.get("trails", 80)))) / 100.0
         warp = max(0, int(self.config.get("warp", 0))) / 100.0
         if decay <= 0:
-            return Image.fromarray(np.clip(f, 0, 255).astype(np.uint8), "L")
+            np.clip(f, 0, 255, out=f)
+            return Image.fromarray(f.astype(np.uint8), "L")
         if self._buf is None or self._buf.shape != (h, w):
             self._buf = np.zeros((h, w), np.float32)
         buf = self._zoom(self._buf, 1.0 + warp) if warp > 0 else self._buf
         out = np.maximum(buf * decay, f)
         self._buf = out
-        return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "L")
+        np.clip(out, 0, 255, out=out)
+        return Image.fromarray(out.astype(np.uint8), "L")
 
     def _pulse(self, ctx: Ctx):
         w, h = self.size
@@ -77,6 +88,7 @@ class _Viz(Applet):
 class PlasmaApplet(_Viz):
     meta = AppletMeta(key="plasma", name="Plasma", description="Audio-reactive plasma field",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": TRAILS, "warp": WARP})
 
     def render(self, ctx: Ctx):
@@ -84,7 +96,10 @@ class PlasmaApplet(_Viz):
             return self._pulse(ctx)
         gx, gy = self._grids()
         a = self._audio
-        t, bass, lvl = ctx.t, a.bass, a.level
+        t = ctx.t
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        bass = a.bass if audio and a.ok else lvl
         speed = 1.0 + 3.0 * bass
         v = (np.sin(gx * 6.0 + t * speed)
              + np.sin(gy * 6.0 + t * 1.3)
@@ -99,6 +114,7 @@ class PlasmaApplet(_Viz):
 class TunnelApplet(_Viz):
     meta = AppletMeta(key="tunnel", name="Tunnel", description="Audio-reactive tunnel",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 82},
                                      "warp": {**WARP, "default": 4}})
 
@@ -107,7 +123,11 @@ class TunnelApplet(_Viz):
             return self._pulse(ctx)
         gx, gy = self._grids()
         a = self._audio
-        t, bass, lvl, treble = ctx.t, a.bass, a.level, a.treble
+        t = ctx.t
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        bass = a.bass if audio and a.ok else lvl
+        treble = a.treble if audio and a.ok else lvl
         dx, dy = gx - 0.5, gy - 0.5
         r = np.sqrt(dx * dx + dy * dy) + 1e-3
         ang = np.arctan2(dy, dx)
@@ -122,6 +142,7 @@ class TunnelApplet(_Viz):
 class ScopeApplet(_Viz):
     meta = AppletMeta(key="scope", name="Scope", description="Audio oscilloscope",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "trails": {**TRAILS, "default": 70}})
 
     def render(self, ctx: Ctx):
@@ -129,6 +150,9 @@ class ScopeApplet(_Viz):
         img = F.canvas(w, h)
         d = ImageDraw.Draw(img)
         a = self._audio
+        audio = self.config.get("audio", True)
+        if not (audio and a.ok):
+            return self._pulse(ctx)
         amp = h * 0.42
         wave = a.wave if (a.ok and any(a.wave)) else None
         if wave:
@@ -142,9 +166,8 @@ class ScopeApplet(_Viz):
                 pts.append((x, y))
             d.line(pts, fill=255, width=1)
         else:
-            lvl = a.level if a.ok else (0.5 - 0.5 * math.cos(ctx.t * 2))
             d.line([(0, h / 2), (w - 1, h / 2)], fill=70)
-            y = h / 2 - lvl * amp
+            y = h / 2 - a.level * amp
             d.line([(0, y), (w - 1, y)], fill=255)
         if HAVE_NP:
             return self._feedback(np.asarray(img, dtype=np.float32))
@@ -154,6 +177,7 @@ class ScopeApplet(_Viz):
 class KaleidoApplet(_Viz):
     meta = AppletMeta(key="kaleido", name="Kaleidoscope", description="Mirrored audio mandala",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "segments": {"type": "int", "default": 6, "label": "Segments"},
                                      "trails": {**TRAILS, "default": 60}})
 
@@ -162,7 +186,11 @@ class KaleidoApplet(_Viz):
             return self._pulse(ctx)
         gx, gy = self._grids()
         a = self._audio
-        t, bass, lvl, treble = ctx.t, a.bass, a.level, a.treble
+        t = ctx.t
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        bass = a.bass if audio and a.ok else lvl
+        treble = a.treble if audio and a.ok else lvl
         dx, dy = gx - 0.5, gy - 0.5
         r = np.sqrt(dx * dx + dy * dy)
         ang = np.arctan2(dy, dx)
@@ -180,6 +208,7 @@ class KaleidoApplet(_Viz):
 class LissajousApplet(_Viz):
     meta = AppletMeta(key="lissajous", name="Lissajous", description="X/Y oscilloscope figure",
                       config_schema={"fps": {"type": "int", "default": 30, "label": "FPS"},
+                                     "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
                                      "a": {"type": "int", "default": 3, "label": "X freq"},
                                      "b": {"type": "int", "default": 2, "label": "Y freq"},
                                      "trails": {**TRAILS, "default": 72}})
@@ -190,7 +219,8 @@ class LissajousApplet(_Viz):
         d = ImageDraw.Draw(img)
         a = self._audio
         t = ctx.t
-        lvl = a.level if a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
+        audio = self.config.get("audio", True)
+        lvl = a.level if audio and a.ok else 0.5 - 0.5 * math.cos(t * 1.5)
         fa = max(1, int(self.config.get("a", 3)))
         fb = max(1, int(self.config.get("b", 2)))
         ax, ay = w * 0.46 * (0.55 + 0.5 * lvl), h * 0.46 * (0.55 + 0.5 * lvl)

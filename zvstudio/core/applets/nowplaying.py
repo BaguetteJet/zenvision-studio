@@ -6,6 +6,7 @@ gracefully to "inactive" if dbus-next is unavailable or no player is running.
 from __future__ import annotations
 
 import asyncio
+import io
 import threading
 import time
 
@@ -14,6 +15,8 @@ from PIL import Image
 from .. import frame as F
 from .base import Applet, AppletMeta, Ctx
 
+ART_SIZE = 48  # album art square in pixels
+
 
 class MprisWatcher:
     """Polls MPRIS players on the session bus; caches the active track."""
@@ -21,7 +24,7 @@ class MprisWatcher:
     def __init__(self, interval: float = 1.0) -> None:
         self.interval = interval
         self.state: dict = {"playing": False, "title": "", "artist": "", "pos": 0.0,
-                            "length": 0.0, "changed_at": 0.0}
+                            "length": 0.0, "changed_at": 0.0, "art_url": ""}
         self._last_title: str | None = None
         self._changed_at = 0.0
         self._lock = threading.Lock()
@@ -108,6 +111,8 @@ class MprisWatcher:
             artist = ", ".join(artist)
         length = meta.get("mpris:length")
         length = (length.value if hasattr(length, "value") else length) or 0
+        art = meta.get("mpris:artUrl")
+        art = art.value if hasattr(art, "value") else art
         title = title or ""
         if title != self._last_title:
             self._last_title = title
@@ -120,6 +125,7 @@ class MprisWatcher:
                 "pos": (pos or 0) / 1e6,
                 "length": (length or 0) / 1e6,
                 "changed_at": self._changed_at,
+                "art_url": art or "",
             }
 
 
@@ -127,9 +133,9 @@ class NowPlayingApplet(Applet):
     meta = AppletMeta(
         key="nowplaying",
         name="Now Playing",
-        description="MPRIS media: scrolling title/artist + progress",
+        description="MPRIS media: album art + scrolling title/artist + progress",
         config_schema={
-            "fps": {"type": "int", "default": 20, "label": "FPS"},
+            "fps": {"type": "int", "default": 15, "label": "FPS"},
             "preempt": {"type": "bool", "default": True, "label": "Pop up on track change"},
             "focus_secs": {"type": "int", "default": 8, "label": "Pop-up seconds (0 = stay while playing)"},
             "speed": {"type": "int", "default": 60, "label": "Scroll px/s"},
@@ -143,6 +149,32 @@ class NowPlayingApplet(Applet):
         if NowPlayingApplet._watcher is None:
             NowPlayingApplet._watcher = MprisWatcher()
             NowPlayingApplet._watcher.start()
+        self._title: str | None = None
+        self._strip: Image.Image | None = None
+        self._art_url: str | None = None
+        self._art: Image.Image | None = None
+        self._art_lock = threading.Lock()
+
+    def _fetch_art(self, url: str) -> None:
+        """Fetch + downscale album art in a background thread; never blocks render()."""
+        try:
+            if url.startswith("file://"):
+                from urllib.request import url2pathname
+
+                im = Image.open(url2pathname(url[7:]))
+            else:
+                import urllib.request
+
+                with urllib.request.urlopen(url, timeout=5) as r:
+                    im = Image.open(io.BytesIO(r.read()))
+            im = im.convert("L")
+            im.thumbnail((ART_SIZE, ART_SIZE), Image.LANCZOS)
+            art = F.canvas(ART_SIZE, ART_SIZE)
+            art.paste(im, ((ART_SIZE - im.width) // 2, (ART_SIZE - im.height) // 2))
+            with self._art_lock:
+                self._art = art
+        except Exception:
+            pass
 
     def wants_focus(self) -> bool:
         if not self.config.get("preempt") or not self._watcher:
@@ -165,14 +197,30 @@ class NowPlayingApplet(Applet):
             return img
 
         speed = float(self.config.get("speed", 60))
-        title = F.render_text(st["title"], 22)
-        if title.width > w:
-            F.scroll(title, int(ctx.t * speed), img, x=0)
+        # Rasterising the title is the expensive part; only redo it on track change.
+        if self._title != st["title"]:
+            self._title = st["title"]
+            self._strip = F.render_text(st["title"], 22, height=32)
+            url = st.get("art_url") or ""
+            if url != self._art_url:
+                self._art_url = url
+                with self._art_lock:
+                    self._art = None
+                if url:
+                    threading.Thread(target=self._fetch_art, args=(url,), daemon=True).start()
+        title = self._strip
+        with self._art_lock:
+            art = self._art
+        tx = ART_SIZE + 8 if art is not None else 4  # text column: beside art, else left edge
+        if title.width > w - tx - 4:
+            F.scroll(title, int(ctx.t * speed), img, x=tx, y=0)
         else:
-            img.paste(title, (4, 0))
+            img.paste(title, (tx, 0))
+        if art is not None:
+            img.paste(art, (2, (h - ART_SIZE) // 2))
 
         if st.get("artist"):
-            F.text(img, (4, 40), st["artist"][:42], size=13, anchor="lm")
+            F.text(img, (tx, h - 20), st["artist"][:42], size=13, anchor="lm")
 
         if st.get("length"):
             prog = st["pos"] / st["length"] if st["length"] else 0.0

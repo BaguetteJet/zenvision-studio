@@ -25,6 +25,12 @@ class VuMeterApplet(Applet):
         super().__init__(*a, **k)
         self._audio = AudioLevel.get(int(self.config.get("bands", 24)))
 
+    def on_start(self) -> None:
+        self._audio.acquire()
+
+    def on_stop(self) -> None:
+        self._audio.release()
+
     def render(self, ctx: Ctx):
         w, h = self.size
         img = F.canvas(w, h)

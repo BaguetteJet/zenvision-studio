@@ -44,6 +44,9 @@ class AudioLevel:
         self._agc = 1e-3
         self._energy = 1e-3
         self._stop = threading.Event()
+        self._start_lock = threading.Lock()
+        self._users = 0
+        self._proc = None
         if HAVE_NP:
             self._win = np.hanning(N).astype(np.float32)
             raw = np.logspace(math.log10(2), math.log10(N // 2), nbands + 1)
@@ -52,13 +55,32 @@ class AudioLevel:
                 if edges[i] <= edges[i - 1]:
                     edges[i] = edges[i - 1] + 1
             self._edges = np.clip(edges, 1, N // 2)
-        threading.Thread(target=self._run, name="audio", daemon=True).start()
 
     @classmethod
     def get(cls, nbands: int = 24) -> AudioLevel:
         if cls._instance is None:
             cls._instance = AudioLevel(nbands)
         return cls._instance
+
+    def acquire(self) -> None:
+        """Start capture when the first audio-dependent applet becomes active."""
+        with self._start_lock:
+            self._users += 1
+            if self._users != 1:
+                return
+            self._stop.clear()
+            threading.Thread(target=self._run, name="audio", daemon=True).start()
+
+    def release(self) -> None:
+        """Stop capture after the last audio-dependent applet becomes inactive."""
+        with self._start_lock:
+            if self._users == 0:
+                return
+            self._users -= 1
+            if self._users == 0:
+                self._stop.set()
+                if self._proc is not None:
+                    self._proc.terminate()
 
     def _monitor(self) -> str:
         try:
@@ -78,6 +100,13 @@ class AudioLevel:
             )
         except Exception:
             return
+        with self._start_lock:
+            self._proc = proc
+            if self._stop.is_set():
+                proc.terminate()
+                self._proc = None
+                proc.wait()
+                return
         need = N * 2
         while not self._stop.is_set():
             buf = b""
@@ -91,6 +120,10 @@ class AudioLevel:
                 self._analyse(buf)
             else:
                 self._rms(buf)
+        with self._start_lock:
+            if self._proc is proc:
+                self._proc = None
+        proc.wait()
 
     def _rms(self, buf: bytes) -> None:
         s = array.array("h")
