@@ -10,6 +10,7 @@ APP = "zvstudio"
 DEFAULT = {
     "brightness": 128,
     "fps": 60,
+    "clock_format": 24,  # panel clock display: 24 or 12 (saved by the clocktime command)
     "playlist": [{
         "applet": "starfield",
         "duration": 0

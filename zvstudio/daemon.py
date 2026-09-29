@@ -40,6 +40,7 @@ class Daemon:
 
     # --- lifecycle -------------------------------------------------------
     def start(self) -> None:
+        self.sync_clock()
         self.comp.start()
 
     def stop(self) -> None:
@@ -51,6 +52,14 @@ class Daemon:
         self.panel.close()
 
     # --- control ---------------------------------------------------------
+    @property
+    def clock_format(self) -> int:
+        """Saved panel clock format: 24 (default) or 12."""
+        try:
+            return 12 if int(self.cfg.get("clock_format", 24)) == 12 else 24
+        except (TypeError, ValueError):
+            return 24
+
     def status(self) -> dict:
         return {
             "backend": self.panel.name,
@@ -58,6 +67,7 @@ class Daemon:
             "enabled": self.comp.enabled,
             "brightness": self.comp.brightness,
             "builtin": self.comp.builtin,
+            "clock_format": self.clock_format,
             "current": self.comp.current_key(),
             "fps": {
                 "cap": self.comp.fps,
@@ -100,12 +110,40 @@ class Daemon:
         """
         if name == "status":
             return {"engine": self.panel.query_engine()}
+        if name == "clocktime":
+            value = self._clocktime_value(value)
         if name == "clock" and int(value) == 2:
             self.panel.send_command("sweep", True)  # clock 2 is paired with sweep on
         self.panel.send_command(name, value)
         if name in ("clock", "theme"):
             self.comp.set_builtin(f"{name}:{value}")
         return {}
+
+    def sync_clock(self) -> None:
+        """Set the panel's built-in clock to the current local time.
+
+        Sent once on startup; the display format comes from the saved
+        ``clock_format`` preference (default 24h).
+        """
+        try:
+            self.run_command("clocktime")
+        except Exception:
+            pass
+
+    def _clocktime_value(self, value) -> dict:
+        """Merge the saved 12/24h preference into a clocktime payload.
+
+        An explicit ``format`` (web UI / API: 1 = 24h, 0 = 12h) also updates
+        the saved preference; otherwise the saved one is applied. The hour
+        itself is always sent in 24h — the flag only affects display.
+        """
+        t = dict(value) if isinstance(value, dict) else {}
+        if t.get("format") is not None:
+            self.cfg["clock_format"] = 24 if t["format"] else 12
+            cfg.save(self.cfg)
+        else:
+            t["format"] = 1 if self.clock_format == 24 else 0
+        return t
 
     def pin(self, key: str | None, config: dict | None = None) -> None:
         if key is None:

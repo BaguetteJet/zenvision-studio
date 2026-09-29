@@ -87,7 +87,9 @@ UI hides the live preview (frames are generated on the panel, not the host). Pin
 applet, changing the playlist, or `resume` re-enters streaming mode
 (`_enter_custom()` → `panel.begin_stream`) and forces the next frame to actually push.
 Brightness is **hardware** (`35 01`, PROTOCOL.md v2) — `set_brightness()` forwards it to the
-panel and never touches pixel data.
+panel and never touches pixel data. The daemon also syncs the panel clock (`clocktime`,
+current local time) once at startup, using the saved `clock_format` preference (`24` default
+or `12`); an explicit format in a `clocktime` payload updates that preference.
 
 ### Applets (`core/applets/`)
 
