@@ -146,7 +146,7 @@ class StarfieldApplet(_Viz):
             n_reset = np.count_nonzero(reset)
             xs[reset] = np.random.uniform(-1, 1, n_reset).astype(np.float32)
             ys[reset] = np.random.uniform(-1, 1, n_reset).astype(np.float32)
-            zs[reset] = 1.0
+            zs[reset] = np.random.uniform(0.9, 1.0, n_reset).astype(np.float32)
             flags[reset] = np.random.random(n_reset) < 0.7
 
         # Project to screen coordinates
