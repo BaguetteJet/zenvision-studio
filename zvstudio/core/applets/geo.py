@@ -10,7 +10,7 @@ from PIL import ImageDraw
 
 from .. import frame as F
 from .base import AppletMeta, Ctx
-from .viz import HAVE_NP, TRAILS, WARP, _Viz
+from .viz import HAVE_NP, TRAILS, _Viz
 
 if HAVE_NP:
     import numpy as np
@@ -94,10 +94,12 @@ class StarfieldApplet(_Viz):
                       config_schema={"fps": {"type": "int", "default": 20, "label": "FPS"},
                                      "count": {"type": "int", "default": 90, "label": "Stars"},
                                      "audio": {"type": "bool", "default": False, "label": "Audio reactive"},
-                                     "trails": {**TRAILS, "default": 66}, "warp": {**WARP, "default": 0}})
+                                     "speed": {"type": "int", "default": 100, "label": "Speed %"},
+                                     "trails": {**TRAILS, "default": 66}})
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
+        self.config.pop("warp", None)
         # NumPy arrays for star properties
         self.xs = np.empty(0, dtype=np.float32)
         self.ys = np.empty(0, dtype=np.float32)
@@ -133,7 +135,8 @@ class StarfieldApplet(_Viz):
         else:
             lvl = 0.1
             beat = 0.0
-        speed = (0.25 + 1.4 * lvl + 1.8 * beat) * dt
+        pace = max(0, min(500, int(self.config.get("speed", 100)))) / 100.0
+        speed = (0.25 + 1.4 * lvl + 1.8 * beat) * dt * pace
 
         xs, ys, zs, flags = self.xs, self.ys, self.zs, self.flags
 
