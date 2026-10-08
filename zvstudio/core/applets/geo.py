@@ -158,8 +158,8 @@ class StarfieldApplet(_Viz):
         sx = cx + xs / zs * scale
         sy = cy + ys / zs * scale
 
-        # Brightness (grayscale 60‑255)
-        g = 60.0 + 195.0 * (1.0 - zs)
+        # Brightness
+        g = 255.0 * (1.0 - zs)
 
         # Integer pixel coordinates
         ix = np.floor(sx).astype(np.int32)
