@@ -17,7 +17,6 @@ class Daemon:
         self.panel = get_panel(backend)
         self.cfg = cfg.load()
         self.comp = Compositor(self.panel, fps=self.cfg.get("fps", 60) or 60)
-        self._applets: dict[str, object] = {}
         self.comp.set_brightness(self.cfg.get("brightness", 255))
         self.apply_config()
 

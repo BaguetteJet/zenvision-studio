@@ -104,7 +104,6 @@ class RippleApplet(_Viz):
             nxt[h // 2, random.randint(2, w - 3)] += 120
         self._prev, self._cur = cur, nxt
         g = np.clip(np.abs(nxt) * 7.0, 0, 255).astype(np.uint8)   # dark water, bright ripples
-        from PIL import Image
         return Image.fromarray(g, "L")
 
 
@@ -131,7 +130,6 @@ class FireApplet(_Viz):
         nxt = np.clip(nxt, 0, 255)
         nxt[-1] = np.random.rand(w) * 255 * (0.55 + 0.6 * bass)
         self._fire = nxt
-        from PIL import Image
         return Image.fromarray(nxt.astype(np.uint8), "L")
 
 

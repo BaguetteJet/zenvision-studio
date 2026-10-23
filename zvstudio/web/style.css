@@ -18,15 +18,10 @@ a { color: var(--accent); text-decoration: none; }
 .app { max-width: 720px; margin: 0 auto; padding: 0 18px 48px; }
 
 /* topbar */
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 2px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 26px 2px 18px; }
 .brand { font-size: 27px; font-weight: 800; letter-spacing: .3px; display: flex; align-items: center; gap: 13px; }
 .brand .dim { color: var(--muted); font-weight: 600; }
 .brand .logo { width: 52px; height: 52px; border-radius: 12px; box-shadow: var(--glow); }
-.topbar { padding: 26px 2px 18px; }
-.spark { width: 14px; height: 14px; border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, var(--accent) 40%, transparent 70%);
-  box-shadow: var(--glow); animation: pulse 3s ease-in-out infinite; }
-@keyframes pulse { 0%,100%{transform:scale(.9);opacity:.8} 50%{transform:scale(1.15);opacity:1} }
 .top-actions { display: flex; align-items: center; gap: 10px; }
 .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: var(--card); }
 
@@ -145,10 +140,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 
 .block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-top: 14px; }
 .bh { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px; }
-.brow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.brow #split { flex: 1; }
-.sel { background: var(--bg2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 9px; }
-.builder .cta { width: 100%; }
 
 /* zone editor */
 .zone-editor { position: relative; width: 100%; aspect-ratio: 256 / 64; background: #000; border: 1px solid var(--line);

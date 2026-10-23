@@ -58,8 +58,6 @@ class _Viz(Applet):
         return np.asarray(big.crop((left, top, left + w, top + h)), dtype=np.float32)
 
     def _feedback(self, frame):
-        if not HAVE_NP:
-            return Image.fromarray(np.asarray(frame).astype("uint8"), "L")
         f = np.asarray(frame, dtype=np.float32)  # no copy when already float32
         h, w = f.shape
         decay = max(0, min(98, int(self.config.get("trails", 80)))) / 100.0

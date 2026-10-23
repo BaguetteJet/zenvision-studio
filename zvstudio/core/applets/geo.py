@@ -99,8 +99,7 @@ class StarfieldApplet(_Viz):
 
     def __init__(self, *a, **k) -> None:
         super().__init__(*a, **k)
-        self.config.pop("warp", None)
-        # NumPy arrays for star properties
+        self.config.pop("warp", None)  # old saved configs had a warp option
         self.xs = np.empty(0, dtype=np.float32)
         self.ys = np.empty(0, dtype=np.float32)
         self.zs = np.empty(0, dtype=np.float32)
@@ -108,7 +107,6 @@ class StarfieldApplet(_Viz):
         self._lt = 0.0
 
     def _seed(self, n: int) -> None:
-        """Initialise star arrays with random values."""
         self.xs = np.random.uniform(-1, 1, n).astype(np.float32)
         self.ys = np.random.uniform(-1, 1, n).astype(np.float32)
         self.zs = np.random.uniform(0.05, 1.0, n).astype(np.float32)
@@ -118,32 +116,24 @@ class StarfieldApplet(_Viz):
         w, h = self.size
         a = self._audio
         n = max(8, int(self.config.get("count", 90)))
-
-        # Re‑seed if star count changed
         if len(self.xs) != n:
             self._seed(n)
 
-        # Time step (clamped)
         dt = max(0.0, min(0.1, ctx.t - self._lt))
         self._lt = ctx.t
 
-        # Audio‑driven speed factor
         audio = self.config.get("audio", True)
         if audio and a.ok:
-            lvl = a.level
-            beat = a.beat
+            lvl, beat = a.level, a.beat
         else:
-            lvl = 0.1
-            beat = 0.0
+            lvl, beat = 0.1, 0.0
         pace = max(0, min(500, int(self.config.get("speed", 100)))) / 100.0
         speed = (0.25 + 1.4 * lvl + 1.8 * beat) * dt * pace
 
         xs, ys, zs, flags = self.xs, self.ys, self.zs, self.flags
-
-        # Vectorised depth update
         zs -= speed
 
-        # Reset stars that passed the horizon
+        # Give each respawned star its own depth so clusters don't stay clumped.
         reset = zs <= 0.02
         if np.any(reset):
             n_reset = np.count_nonzero(reset)
@@ -152,37 +142,26 @@ class StarfieldApplet(_Viz):
             zs[reset] = np.random.uniform(0.9, 1.0, n_reset).astype(np.float32)
             flags[reset] = np.random.random(n_reset) < 0.7
 
-        # Project to screen coordinates
         cx, cy = w / 2, h / 2
         scale = min(w, h) * 0.9
         sx = cx + xs / zs * scale
         sy = cy + ys / zs * scale
-
-        # Brightness
         g = 255.0 * (1.0 - zs)
 
-        # Integer pixel coordinates
         ix = np.floor(sx).astype(np.int32)
         iy = np.floor(sy).astype(np.int32)
-
-        # Stars inside the canvas
         inside = (ix >= 0) & (ix < w) & (iy >= 0) & (iy < h)
 
-        # Separate tiny (point) and bloom (2×2 block) stars
+        # Near stars bloom into 2x2 blocks; the rest stay single pixels.
         point_mask = inside & (flags | (zs > 0.4))
         bloom_mask = inside & (~flags) & (zs <= 0.4)
 
-        # Create float32 grayscale image
         img = np.zeros((h, w), dtype=np.float32)
-
-        # --- Draw point stars (single pixel) ---
         if np.any(point_mask):
             px = ix[point_mask]
             py = iy[point_mask]
-            vals = g[point_mask]
-            img[py, px] = vals
+            img[py, px] = g[point_mask]
 
-        # --- Draw bloom stars as 2×2 solid blocks ---
         if np.any(bloom_mask):
             bx = ix[bloom_mask]
             by = iy[bloom_mask]

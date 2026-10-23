@@ -18,6 +18,11 @@ from .base import Applet, AppletMeta, Ctx
 ART_SIZE = 48  # album art square in pixels
 
 
+def _value(v):
+    """Unwrap a dbus-next Variant (plain values pass through)."""
+    return v.value if hasattr(v, "value") else v
+
+
 class MprisWatcher:
     """Polls MPRIS players on the session bus; caches the active track."""
 
@@ -103,17 +108,12 @@ class MprisWatcher:
             return
 
         status, meta, pos = best
-        title = meta.get("xesam:title")
-        title = title.value if hasattr(title, "value") else (title or "")
-        artist = meta.get("xesam:artist")
-        artist = artist.value if hasattr(artist, "value") else artist
+        title = _value(meta.get("xesam:title")) or ""
+        artist = _value(meta.get("xesam:artist"))
         if isinstance(artist, list):
             artist = ", ".join(artist)
-        length = meta.get("mpris:length")
-        length = (length.value if hasattr(length, "value") else length) or 0
-        art = meta.get("mpris:artUrl")
-        art = art.value if hasattr(art, "value") else art
-        title = title or ""
+        length = _value(meta.get("mpris:length")) or 0
+        art = _value(meta.get("mpris:artUrl")) or ""
         if title != self._last_title:
             self._last_title = title
             self._changed_at = time.monotonic()
@@ -123,9 +123,9 @@ class MprisWatcher:
                 "title": title,
                 "artist": artist or "",
                 "pos": (pos or 0) / 1e6,
-                "length": (length or 0) / 1e6,
+                "length": length / 1e6,
                 "changed_at": self._changed_at,
-                "art_url": art or "",
+                "art_url": art,
             }
 
 

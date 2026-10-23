@@ -19,9 +19,6 @@ class FramesApplet(Applet):
         super().__init__(*a, **k)
         self._frames = [f.convert("L") for f in (frames or [])]
 
-    def set_frames(self, frames: list[Image.Image]) -> None:
-        self._frames = [f.convert("L") for f in frames]
-
     def render(self, ctx: Ctx) -> Image.Image:
         if not self._frames:
             return F.canvas(*self.size)
