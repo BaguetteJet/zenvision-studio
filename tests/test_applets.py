@@ -17,6 +17,24 @@ def test_applet_renders_panel_sized_grayscale(key):
     assert img.mode == "L"
 
 
+def test_starfield_respawn_depths_are_not_identical():
+    """Stars respawning on the same frame must not share an identical depth.
+
+    All stars advance by the same step, so equal z values stay equal forever:
+    such a group later resets together, groups only ever merge, and the whole
+    field ends up spawning in one clump instead of trickling in gradually.
+    """
+    import numpy as np
+
+    from zvstudio.core.applets.geo import StarfieldApplet
+
+    ap = StarfieldApplet(size=SIZE, config={"audio": False, "fps": 20})
+    ap.render(Ctx(t=0.0, frame=0, size=SIZE))  # initial seed
+    ap.zs[:5] = 0.01  # five stars cross the horizon on the next frame
+    ap.render(Ctx(t=0.05, frame=1, size=SIZE))
+    assert len(np.unique(ap.zs[:5])) > 1, "stars respawning together got an identical z"
+
+
 def test_player_no_media_placeholder():
     from zvstudio.core.applets.player import PlayerApplet
 

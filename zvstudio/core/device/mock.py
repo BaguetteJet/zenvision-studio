@@ -70,8 +70,3 @@ class MockPanel(Panel):
 
     def query_engine(self) -> str | None:
         return self._engine
-
-    def snapshot(self) -> Image.Image:
-        """Latest frame (used by the web UI preview)."""
-        with self._lock:
-            return self._last.copy()

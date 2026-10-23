@@ -15,7 +15,6 @@ class Panel(ABC):
     name: str = "panel"
     width: int = 256
     height: int = 64
-    grayscale: bool = True
 
     @property
     def size(self) -> tuple[int, int]:

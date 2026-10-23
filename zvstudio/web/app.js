@@ -205,8 +205,8 @@ function blendURL(a, b, t) {
   return c.toDataURL();
 }
 function tweenCount() { const tw = Math.max(0, +$("#tween").value || 0), n = frames.length;
-  const segs = $("#loopt").checked ? n : Math.max(0, n - 1);
-  return meta.reduce((s, m) => s + Math.max(1, m.hold || 1), 0) + (n > 1 ? tw * segs : 0); }
+  const segs = n < 2 ? 0 : ($("#loopt").checked ? n : n - 1);
+  return meta.reduce((s, m) => s + Math.max(1, m.hold || 1), 0) + tw * segs; }
 function updateCount() {
   const total = tweenCount(), fps = +$("#efps").value || 12;
   $("#fcount").textContent = `${frames.length} keyframes → ${total} frames · ${(total / fps).toFixed(1)}s @ ${fps}fps`;

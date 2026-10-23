@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from PIL import Image
 
 from . import config as cfg
 from .daemon import Daemon
@@ -80,11 +81,6 @@ def create_app(daemon: Daemon) -> FastAPI:
 
     @app.post("/api/draw")
     def draw(payload: dict) -> dict:
-        import base64
-        import io
-
-        from PIL import Image
-
         frames = []
         for d in payload.get("frames", []):
             b = d.split(",", 1)[-1]

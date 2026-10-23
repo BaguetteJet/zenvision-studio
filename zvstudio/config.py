@@ -1,6 +1,7 @@
 """Persistent configuration (XDG). Stored as JSON so writing needs no extra deps."""
 from __future__ import annotations
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -10,13 +11,9 @@ APP = "zvstudio"
 DEFAULT = {
     "brightness": 128,
     "fps": 60,
-    "playlist": [{
-        "applet": "starfield",
-        "duration": 0
-    }],
-    "preempt": [
-    "nowplaying"
-    ]
+    "clock_format": 24,  # panel clock display: 24 or 12 (saved by the clocktime command)
+    "playlist": [{"applet": "starfield", "duration": 0}],
+    "preempt": ["nowplaying"],
 }
 
 
@@ -34,12 +31,12 @@ def config_path() -> Path:
 def load() -> dict:
     p = config_path()
     if not p.exists():
-        return json.loads(json.dumps(DEFAULT))
+        return copy.deepcopy(DEFAULT)
     try:
         data = json.loads(p.read_text())
     except Exception:
-        return json.loads(json.dumps(DEFAULT))
-    merged = json.loads(json.dumps(DEFAULT))
+        return copy.deepcopy(DEFAULT)
+    merged = copy.deepcopy(DEFAULT)
     merged.update(data)
     return merged
 

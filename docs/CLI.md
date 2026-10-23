@@ -64,8 +64,13 @@ applet returns to streaming. Wire format: [PROTOCOL.md](PROTOCOL.md#command-chan
 | `bootanim` | `on` / `off` | Lid-close boot animation. |
 | `speed` | `1`–`3` | Speed of the built-in content. |
 | `brightness` | `0`–`255` | Hardware brightness (same as the `brightness` verb). |
-| `clocktime` | *(none)* / `now` | Set the panel's clock to the current local time. |
+| `clocktime` | *(none)* / `now` | Set the panel's clock to the current local time, using the saved 12/24h format. |
 | `status` | — | Query what the panel engine is playing (`clock`, `theme` or custom image). |
+
+The daemon also sets the panel clock on startup, so the built-in clock layouts show
+the right time without a manual `clocktime`. The format byte is saved to
+`~/.config/zvstudio/config.json` as `clock_format` (`24`, the default, or `12`) and
+is reused on the next startup.
 
 Booleans accept `on`/`off` (also `true`/`false`, `yes`/`no`). Examples:
 

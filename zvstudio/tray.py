@@ -13,6 +13,7 @@ installed as system packages. Override with ``PYSTRAY_BACKEND`` if needed.
 from __future__ import annotations
 
 import os
+import sys
 import webbrowser
 from pathlib import Path
 
@@ -61,7 +62,7 @@ def run_tray(url: str = DEFAULT_URL) -> int:
             "`python -m venv --system-site-packages .venv` or install into a\n"
             "Python that already has python-gobject.\n"
             f"(import error: {e})",
-            file=__import__("sys").stderr,
+            file=sys.stderr,
         )
         return 1
 
@@ -90,7 +91,7 @@ def run_tray(url: str = DEFAULT_URL) -> int:
 
     def builtin_items():
         def send(name, value):
-            return lambda icon, item: post("/api/command", {"name": name, "value": value})(icon, item)
+            return post("/api/command", {"name": name, "value": value})
 
         return [
             Item("Clock layout 1", send("clock", 1), radio=True, checked=lambda item: status().get("builtin") == "clock:1"),

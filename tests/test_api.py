@@ -1,9 +1,11 @@
+import json
 import os
 
 os.environ["ZVSTUDIO_BACKEND"] = "mock"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from zvstudio import config as cfg  # noqa: E402
 from zvstudio.api import create_app  # noqa: E402
 from zvstudio.daemon import Daemon  # noqa: E402
 
@@ -66,6 +68,27 @@ def test_command_endpoint():
         client.post("/api/resume", json={})
         assert d.comp.builtin is None
         assert d.panel.query_engine() == "07"
+    finally:
+        d.stop()
+
+
+def test_clock_synced_on_start_and_format_saved(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    d = Daemon(backend="mock")
+    try:
+        d.start()
+        # startup sync sets the panel clock, defaulting to 24h
+        assert ("clocktime", {"format": 1}) in d.panel.commands
+        # an explicit format updates the saved preference
+        d.run_command("clocktime", {"format": 0})
+        assert json.loads(cfg.config_path().read_text())["clock_format"] == 12
+    finally:
+        d.stop()
+    # a fresh daemon starts in the saved 12h format
+    d = Daemon(backend="mock")
+    try:
+        d.start()
+        assert ("clocktime", {"format": 0}) in d.panel.commands
     finally:
         d.stop()
 

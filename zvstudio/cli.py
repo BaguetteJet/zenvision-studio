@@ -82,12 +82,11 @@ def cmd_daemon(args) -> int:
     d.start()
     app = create_app(d)
 
-    @app.on_event("shutdown")
-    def _shutdown() -> None:
-        d.stop()
-
     print("zenvision-studio daemon on http://%s:%d (backend=%s)" % (args.host, args.port, d.panel.name))
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    finally:
+        d.stop()
     return 0
 
 
